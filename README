@@ -1,0 +1,19 @@
+
+This is tested only with clisp 2.35 and 2.38, compiled with new-clx,
+for now.  To start, at the shell prompt, type:
+
+    ./lisp.sh
+
+To exit, at the IPL-USER[##]> prompt, type: 
+
+    (quit)
+
+To load the graphic examples:
+
+    (load "ipl-ex-graphic")
+
+
+-- 
+__Pascal Bourguignon__                     
+http://www.informatimago.com/
+Fri Nov  4 11:08:22 CET 2005
