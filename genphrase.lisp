@@ -73,17 +73,18 @@
     (post-adj/mp    => rouges bleus verts)
     (nom/m          =>
      lapin chat chien cheval pain homme marteau
-     rat gruyère)
+     rat gruyère garçon raisin poireau caillou)
     (nom/mp         =>
      lapins chats chiens chevaux pains hommes marteaux
-     rats gruyères)
+     rats gruyères poireaux raisins garçons cailloux)
     (nom/f          =>
      lapine chatte chienne jument pomme orange balle femme table
-     souris raclette)
+     souris raclette pierre tempête colère carote tomate pomme poire)
     (nom/fp         =>
      lapines chattes chiennes juments pommes oranges balles femmes tables
-     souris raclettes)
-    (nom-propre     => Jean Jeanne Claude Dominique))
+     souris raclettes pierres tempêtes colères carotes tomates pommes poires)
+    (nom-propre     => Jean Jeanne Claude Dominique Pierre
+     Pascal Alain Bernard Henri))
   "Définition d'une grammaire française simplifiée.")
 
 

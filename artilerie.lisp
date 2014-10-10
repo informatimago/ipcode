@@ -89,4 +89,4 @@
 (in-package "IPL-USER")
 (print '(artilerie:main))
 
-
+;;;; THE END ;;;;
