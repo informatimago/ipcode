@@ -1,3 +1,4 @@
+;;;; -*- mode:lisp;coding:utf-8 -*-
 ;;;;**************************************************************************
 ;;;;FILE:               artilerie.lisp
 ;;;;LANGUAGE:           Common-Lisp
@@ -12,10 +13,11 @@
 ;;;;MODIFICATIONS
 ;;;;    2007-03-19 <PJB> Created.
 ;;;;BUGS
+;;;;    The game is not finished.
 ;;;;LEGAL
 ;;;;    GPL
 ;;;;    
-;;;;    Copyright Pascal Bourguignon 2007 - 2007
+;;;;    Copyright Pascal Bourguignon 2007 - 2014
 ;;;;    
 ;;;;    This program is free software; you can redistribute it and/or
 ;;;;    modify it under the terms of the GNU General Public License
@@ -32,25 +34,21 @@
 ;;;;    Software Foundation, Inc., 59 Temple Place, Suite 330,
 ;;;;    Boston, MA 02111-1307 USA
 ;;;;**************************************************************************
-;;;;    
-;;;; -*- coding:utf-8 -*-
-
-;; /home/pjb/works/initprog/code
-
 (defpackage "ARTILERIE" 
   (:use "COMMON-LISP" "IPL-CLX")
   (:export "MAIN"))
 (in-package "ARTILERIE")
 
 
-(DEFSTRUCT (SEGMENT (:TYPE LIST)) from to)
-(DEFUN SEGMENT (from to)
+(defstruct (segment (:type list)) from to)
+(defun segment (from to)
   "Retourne un nouveau segment 2D."
-  (MAKE-SEGMENT :from from :to to))
+  (make-segment :from from :to to))
 
 (defun segments-to-polygon (segs)
   (cons (segment-from (first segs))
-        (loop :for (from to) :in segs
+        (loop
+          :for (nil to) :in segs
            :collect to)))
 
 (defun make-ground (seg)
@@ -69,22 +67,26 @@
                (make-ground (segment mid (segment-to seg)))))
       (list seg)))
 
+(defun main ()
+  (with-window (:display-name "localhost:0.0")
+    (loop
+      :do
+         (set-color (ipl-clx::rgb 150 200 255))
+         (draw-rectangle 0 0 (window-width) (window-height) t)
+         (set-color (ipl-clx::rgb 100 80 10))
+         (draw-polygon
+          (list*
+           (point 512 0) (point 0 0)
+           (loop
+             :for ground = (segments-to-polygon
+                            (make-ground (segment (point 0 150) (point 512 150))))
+             :until (every (lambda (p) (< 0 (y p) 340)) ground)
+             :finally (return ground)))
+          t)
+         ;; TODO: Add cannons. Get user input to shoot. Etc.
+      :until (y-or-n-p "~%Done?"))))
 
-(WITH-WINDOW (:display-name "thalassa:0.0")
-  (loop
-     :do
-     (set-color (IPL-CLX::RGB 150 200 255))
-     (draw-rectangle 0 0 (WINDOW-width) (window-height) t)
-     (set-color (IPL-CLX::RGB 100 80 10))
-     (draw-polygon
-      (list*
-       (point 512 0) (point 0 0)
-       (loop
-          :for ground = (SEGMENTS-TO-POLYGON
-                         (make-ground (segment (point 0 150) (point 512 150))))
-          :until (every (lambda (p) (< 0 (y p) 340)) ground)
-          :finally (return ground)))
-      t)
-     :until (y-or-n-p "~%Done?")))
+(in-package "IPL-USER")
+(print '(artilerie:main))
 
 

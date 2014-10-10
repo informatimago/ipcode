@@ -1,8 +1,5 @@
 ;;;; -*- coding: utf-8 -*-
-
-(use-package :ipl-clx)
-
-
+(use-package "IPL-CLX")
 
 
 (defun solve-line-y (ax ay bx by)
@@ -73,12 +70,14 @@
 
 
 
-(loop
-   :repeat 1000
-   :do (set-rgb-color (random 256) (random 256) (random 256))
-   :do (fill-triangle (make-point :x (random 512) :y (random 342))
-                      (make-point :x (random 512) :y (random 342))
-                      (make-point :x (random 512) :y (random 342))))
+(defun test/fill-triangle/1 ()
+  (loop
+    :repeat 1000
+    :do (set-rgb-color (random 256) (random 256) (random 256))
+    :do (fill-triangle (make-point :x (random 512) :y (random 342))
+                       (make-point :x (random 512) :y (random 342))
+                       (make-point :x (random 512) :y (random 342)))))
+
 
 
 (defun arrangements-sans-repeat (n list)
@@ -99,35 +98,36 @@
      (distance-squared (first tri)  (third tri))
      (distance-squared (second tri) (third tri))))
 
-(let* ((triangles
-       (let ((points (make-array (list (truncate 512 16) (truncate 342 16)))))
-         (loop
-            :for j :from 0 :below (truncate 342 16)
-            :for y :from 0 :by 16
-            :do (loop
-                   :for i :from 0 :below (truncate 512 16)
-                   :for x :from (if (oddp j) 0 8) :by 16
-                   :do (setf (aref points i j)
-                             (make-point :x (+ x (random 16))
-                                         :y (+ y (random 16))))))
-         (loop
-            :for j :from 0 :below (1- (truncate 342 16))
-            :nconc (loop
-                      :for i :from 0 :below (1- (truncate 512 16))
-                      :collect (list (aref points i j)
-                                     (aref points (1+ i) j)
-                                     (aref points i (1+ j)))))))
-       (max-size (reduce (function max)
-                         (mapcar (function triangle-size) triangles))))
-  (dolist (triangle  triangles)
-    (let ((size (sqrt (/ (triangle-size triangle) max-size))))
-      (set-rgb-color (random (truncate (* 256 size)))
-                     (random (truncate (* 256 size)))
-                     (random (truncate (* 256 size)))))
-    (apply (function fill-triangle) triangle)))
+(defun test/fill-triangle/2 ()
+  (let* ((triangles
+           (let ((points (make-array (list (truncate 512 16) (truncate 342 16)))))
+             (loop
+               :for j :from 0 :below (truncate 342 16)
+               :for y :from 0 :by 16
+               :do (loop
+                     :for i :from 0 :below (truncate 512 16)
+                     :for x :from (if (oddp j) 0 8) :by 16
+                     :do (setf (aref points i j)
+                               (make-point :x (+ x (random 16))
+                                           :y (+ y (random 16))))))
+             (loop
+               :for j :from 0 :below (1- (truncate 342 16))
+               :nconc (loop
+                        :for i :from 0 :below (1- (truncate 512 16))
+                        :collect (list (aref points i j)
+                                       (aref points (1+ i) j)
+                                       (aref points i (1+ j)))))))
+         (max-size (reduce (function max)
+                           (mapcar (function triangle-size) triangles))))
+    (dolist (triangle  triangles)
+      (let ((size (sqrt (/ (triangle-size triangle) max-size))))
+        (set-rgb-color (random (truncate (* 256 size)))
+                       (random (truncate (* 256 size)))
+                       (random (truncate (* 256 size)))))
+      (apply (function fill-triangle) triangle))))
+
+(print '(test/fill-triangle/1))
+(print '(test/fill-triangle/2))
 
 
-
-
-
-
+;;;; THE END ;;;;
