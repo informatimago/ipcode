@@ -18,7 +18,7 @@
 ;;;;LEGAL
 ;;;;    GPL
 ;;;;    
-;;;;    Copyright Pascal Bourguignon 2005 - 2005
+;;;;    Copyright Pascal Bourguignon 2005 - 2014
 ;;;;    
 ;;;;    This program is free software; you can redistribute it and/or
 ;;;;    modify it under the terms of the GNU General Public License
@@ -35,15 +35,13 @@
 ;;;;    Software Foundation, Inc., 59 Temple Place, Suite 330,
 ;;;;    Boston, MA 02111-1307 USA
 ;;;;**************************************************************************
-
-(defpackage :ipl-turtles
-  (:use :ipl :ipl-clx)
+(defpackage "IPL-TURTLES"
+  (:use "IPL" "IPL-CLX")
   (:export "TURTLES" "MOVE-OFFSET" "DRAW-OFFSET" "ERASE-OFFSET"
            "MOVE" "DRAW" "ERASE" "TURN" "TURN/RADIANS"
            "CLEAR"  "SPLIT" "SPLIT*" "TPROMPT"
            "REPEAT"))
-
-(in-package :ipl-turtles)
+(in-package "IPL-TURTLES")
 
 
 (defstruct (turtle (:copier copy-turtle))
@@ -139,7 +137,7 @@ and erases along that path."
   "Turns the turtle THETA degrees counter-clockwise."
   (turn/radians (radian<-degree theta)))
 
-(defun turn/radians (THETA)
+(defun turn/radians (theta)
   "Turns the turtle THETA radians counter-clockwise."
   (ensure-turtles)
   (dolist (turtle *turtles* (values))
@@ -148,14 +146,14 @@ and erases along that path."
 
 (defun clear ()
   "Erases the turtles window."
-  (CLEAR-WINDOW)
+  (clear-window)
   (setf *turtles* (list (make-turtle :position (point (/ (window-width)  2)
                                                       (/ (window-height) 2))))))
 
 
 (defmacro with-turtle (turtle &body body)
   ;; NOTE: this will prevent split inside splits.
-  `(let ((*turtles* (list turtle)))
+  `(let ((*turtles* (list ,turtle)))
      ,@body))
 
 
@@ -192,7 +190,8 @@ and erases along that path."
      ,@body))
 
 
-(defmacro repeat (count &body body) `(loop :repeat ,count :do ,@body))
+(defmacro repeat (count &body body)
+  `(loop :repeat ,count :do ,@body))
 
 
 ;;; The End ;;;

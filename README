@@ -1,19 +1,42 @@
 
-This is tested only with clisp 2.35 and 2.38, compiled with new-clx,
-for now.  To start, at the shell prompt, type:
+This is tested with:
+
+- clisp 2.49+, compiled with new-clx;
+- ccl 1.10.
+
+
+To start with clisp, at the shell prompt type:
 
     ./lisp.sh
 
-To exit, at the IPL-USER[##]> prompt, type: 
+To start with ccl, at the shell prompt type:
 
-    (quit)
+    ccl -n -e '(load "ipl-init.lisp")' -e '(in-package "IPL-USER")'
+
 
 To load the graphic examples:
 
     (load "ipl-ex-graphic")
+    (in-package "IPL-USER")
+    ;; then try one of the following functions: 
+    ;; some of them must be halted with Control-C;
+    ;; in that case, exit from the debugger, reverting to the toplevel
+    ;; with the :q command.
+    (rotating-square) 
+    (browning) 
+    (test-draw-function) 
+    (ex-turtle-1) 
+    (ex-turtle-2) 
+    (ex-turtle-3) 
+
+
+To exit, at the REPL prompt, type: 
+
+    (quit)
 
 
 -- 
 __Pascal Bourguignon__                     
 http://www.informatimago.com/
-Fri Nov  4 11:08:22 CET 2005
+Fri Oct 10 17:54:25 CEST 2014
+

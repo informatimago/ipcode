@@ -1,4 +1,4 @@
-;;;; -*- coding: utf-8 -*-
+;;;; -*- mode:lisp; coding:utf-8 -*-
 ;;;;**************************************************************************
 ;;;;FILE:               ipl-clx.lisp
 ;;;;LANGUAGE:           Common-Lisp
@@ -18,7 +18,7 @@
 ;;;;LEGAL
 ;;;;    GPL
 ;;;;    
-;;;;    Copyright Pascal Bourguignon 2005 - 2005
+;;;;    Copyright Pascal Bourguignon 2005 - 2014
 ;;;;    
 ;;;;    This program is free software; you can redistribute it and/or
 ;;;;    modify it under the terms of the GNU General Public License
@@ -35,12 +35,10 @@
 ;;;;    Software Foundation, Inc., 59 Temple Place, Suite 330,
 ;;;;    Boston, MA 02111-1307 USA
 ;;;;**************************************************************************
-
-(IN-PACKAGE "IPL")
-
-(DEFPACKAGE "IPL-CLX"
-  (:USE "IPL")
-  (:EXPORT "X" "Y" "MAKE-POINT" "COPY-POINT" "RETURN-FROM-DO-WINDOW"
+(in-package "IPL")
+(defpackage "IPL-CLX"
+  (:use "IPL" "BABEL")
+  (:export "X" "Y" "MAKE-POINT" "COPY-POINT" "RETURN-FROM-DO-WINDOW"
            "XENV" "*XENV*" "DEFAULT-XENV" "OPEN-WINDOW" "CLOSE-WINDOW"
            "*WINDOW-MANAGER-ENCODING*" "WM-CLASS" "WINDOW-TITLE"
            "WINDOW-WIDTH" "WINDOW-HEIGHT"
@@ -48,9 +46,9 @@
            "CLEAR-WINDOW"  "SET-RGB-COLOR"  "SET-COLOR"  "POINT" "DRAW-POINT-AT"
            "DRAW-POINT" "DRAW-POINTS" "DRAW-LINE" "DRAW-POLYGON"
            "DRAW-RECTANGLE" "DRAW-ARC" "DRAW-TEXT"
-           "*WHITE*" "*LIGHT-GRAY*" "*DARK-GRAY*" "*BLACK*"))
-
-(IN-PACKAGE "IPL-CLX")
+           "*WHITE*" "*LIGHT-GRAY*" "*DARK-GRAY*" "*BLACK*")
+  (:documentation "The IPL-CLX package exports a simplified set of graphics primitives."))
+(in-package "IPL-CLX")
 
 ;;; (ext:without-package-lock (:posix)
 ;;;   (defun posix::hostent-addr-type (&rest args)
@@ -64,45 +62,47 @@
   "-adobe-times-medium-r-normal--12-120-75-75-p-64-iso8859-1")
 
 
-(DEFSTRUCT XENV
+(defstruct xenv
   "Un environnement X window"
-  DISPLAY                               ; le serveur X
-  WINDOW                                ; la fenêtre X
-  WCONTEXT                     ; le contexte graphique pour la fenêtre
-  BACKUP                ; une pixmap contenant une copie de la fenêtre
-  BCONTEXT)                      ; le contexte graphique pour la copie
+  display                               ; le serveur X
+  window                                ; la fenêtre X
+  wcontext                     ; le contexte graphique pour la fenêtre
+  backup                ; une pixmap contenant une copie de la fenêtre
+  bcontext)                      ; le contexte graphique pour la copie
 
-(DEFVAR *XENV* NIL
+(defvar *xenv* nil
   "L'environnement X window pris par défaut.")
 
-(DEFUN DEFAULT-XENV ()
+(defun default-xenv ()
   "Retourne l'environnement X window par défaut.
 S'il n'existe pas, alors on le crée."
-  (WHEN (OR (NULL *XENV*) (NULL (XENV-WINDOW *XENV*)))
-    (SETF *XENV* (OPEN-WINDOW)))
-  *XENV*)
+  (when (or (null *xenv*) (null (xenv-window *xenv*)))
+    (setf *xenv* (open-window)))
+  *xenv*)
 
-(DEFUN GETENV (VARIABLE)
+(defun getenv (variable)
   "Retourne la valeur de la variable d'environnement."
-  #+CLISP (EXT:GETENV VARIABLE)
-  #+SBCL (CDR (ASSOC VARIABLE EXT:*ENVIRONMENT-LIST* :TEST #'STRING=))
-  #-(OR CLISP SBCL)
-  (ERROR "~A: comment obtenir la valeur d'une variable ~
-               d'environnement POSIX ?" 'GETENV))
+  #+clisp (ext:getenv variable)
+  #+ccl   (ccl:getenv variable)
+  #+sbcl  (cdr (assoc variable ext:*environment-list* :test #'string=))
+  #-(or clisp ccl sbcl)
+  (error "~A: comment obtenir la valeur d'une variable ~
+               d'environnement POSIX ?" 'getenv))
 
-(DEFUN PARSE-DISPLAY-VARIABLE (S)
+
+(defun parse-display-variable (s)
   "Analyse le nom du display X et
 retourne le nom du serveur, et le numéro du display."
-  (LET* ((COLON (POSITION #\: S))
-         (DOT (POSITION #\. S :START COLON))
-         (HOST-NAME (IF (ZEROP COLON) "localhost" (SUBSEQ S 0 COLON)))
-         (DISPLAY-NUMBER (PARSE-INTEGER S :START (1+ COLON) :END DOT)))
-    (VALUES HOST-NAME DISPLAY-NUMBER)))
+  (let* ((colon (position #\: s))
+         (dot (position #\. s :start colon))
+         (host-name (if (zerop colon) "localhost" (subseq s 0 colon)))
+         (display-number (parse-integer s :start (1+ colon) :end dot)))
+    (values host-name display-number)))
 
 
-(DEFUN OPEN-WINDOW (&KEY DISPLAY-NAME HOST DISPLAY-NUMBER
-                    (X 0) (Y 0) (WIDTH 512) (HEIGHT 342) TITLE
-                    (WM-CLASS '("lisp" "LISP")))
+(defun open-window (&key display-name host display-number
+                      (x 0) (y 0) (width 512) (height 342) 
+                      (title "IPL LISP") (wm-class '("lisp" "LISP")))
   "Ouvre une nouvelle fenêtre sur le display DISPLAY-NUMBER du serveur X HOST.
 Au lieu de spécifier HSOT e DISPLAY-NUMBER, on peut spécifier DISPLAY-NAME
 avec la syntaxe \"host:display-number[.screen-number]\".
@@ -110,352 +110,362 @@ Si on ne spécifie ni l'un ni l'autre alors la variable d'environnement DISPLAY
 est utilisée, ou sinon \":0.0\".
 Retourne une structure xenv.
 "
-  (UNLESS (AND HOST DISPLAY-NUMBER)
-    (MULTIPLE-VALUE-SETQ (HOST DISPLAY-NUMBER)
-      (PARSE-DISPLAY-VARIABLE (OR DISPLAY-NAME (GETENV "DISPLAY") ":0.0"))))
-  (LET* ((DISPLAY  (XLIB:OPEN-DISPLAY HOST :DISPLAY DISPLAY-NUMBER))
-         (SCREEN   (XLIB:DISPLAY-DEFAULT-SCREEN DISPLAY))
-         (BLACK    (XLIB:SCREEN-BLACK-PIXEL SCREEN))
-         (WHITE    (XLIB:SCREEN-WHITE-PIXEL SCREEN))
-         (WINDOW   (XLIB:CREATE-WINDOW
-                    :PARENT (XLIB:SCREEN-ROOT SCREEN)
-                    :BACKGROUND WHITE
-                    :EVENT-MASK (XLIB:MAKE-EVENT-MASK :BUTTON-RELEASE
-                                                      :KEY-PRESS
-                                                      :KEY-RELEASE
-                                                      :BUTTON-MOTION
-                                                      :RESIZE-REDIRECT
-                                                      :EXPOSURE
-                                                      :VISIBILITY-CHANGE
-                                                      :STRUCTURE-NOTIFY )
-                    :BIT-GRAVITY   :SOUTH-WEST
-                    :X X :Y Y :WIDTH WIDTH :HEIGHT HEIGHT))
-         (BACKUP   (XLIB:CREATE-PIXMAP
-                    :WIDTH WIDTH :HEIGHT HEIGHT
-                    :DEPTH (XLIB:SCREEN-ROOT-DEPTH SCREEN)
-                    :DRAWABLE WINDOW))
+  (unless (and host display-number)
+    (multiple-value-setq (host display-number)
+      (parse-display-variable (or display-name (getenv "DISPLAY") ":0.0"))))
+  (let* ((display  (xlib:open-display host :display display-number))
+         (screen   (xlib:display-default-screen display))
+         (black    (xlib:screen-black-pixel screen))
+         (white    (xlib:screen-white-pixel screen))
+         (window   (xlib:create-window
+                    :parent (xlib:screen-root screen)
+                    :background white
+                    :event-mask (xlib:make-event-mask :button-release
+                                                      :key-press
+                                                      :key-release
+                                                      :button-motion
+                                                      :resize-redirect
+                                                      :exposure
+                                                      :visibility-change
+                                                      :structure-notify )
+                    :bit-gravity   :south-west
+                    :x x :y y :width width :height height))
+         (backup   (xlib:create-pixmap
+                    :width width :height height
+                    :depth (xlib:screen-root-depth screen)
+                    :drawable window))
          (font     (xlib:open-font display *system-font-name*))
-         (WCONTEXT (XLIB:CREATE-GCONTEXT :DRAWABLE WINDOW
-                                         :BACKGROUND WHITE
-                                         :FOREGROUND BLACK
+         (wcontext (xlib:create-gcontext :drawable window
+                                         :background white
+                                         :foreground black
                                          :font font))
-         (BCONTEXT (XLIB:CREATE-GCONTEXT :DRAWABLE BACKUP
-                                         :BACKGROUND WHITE
-                                         :FOREGROUND BLACK
+         (bcontext (xlib:create-gcontext :drawable backup
+                                         :background white
+                                         :foreground black
                                          :font font)))
-    (LET ((XENV (MAKE-XENV :DISPLAY  DISPLAY
-                           :WINDOW   WINDOW
-                           :WCONTEXT WCONTEXT
-                           :BACKUP   BACKUP
-                           :BCONTEXT BCONTEXT)))
-      (SETF (WM-CLASS XENV) WM-CLASS)
-      (XLIB:MAP-WINDOW WINDOW)
-      (XLIB:DISPLAY-FORCE-OUTPUT DISPLAY)
-      (CLEAR-WINDOW XENV)
-      (WHEN TITLE (SETF (WINDOW-TITLE XENV) TITLE))
-      XENV)))
+    (let ((xenv (make-xenv :display  display
+                           :window   window
+                           :wcontext wcontext
+                           :backup   backup
+                           :bcontext bcontext)))
+      (setf (wm-class xenv) wm-class)
+      (xlib:map-window window)
+      (xlib:display-force-output display)
+      (clear-window xenv)
+      (when title (setf (window-title xenv) title))
+      xenv)))
 
 
-(DEFUN CLOSE-WINDOW (&OPTIONAL (*XENV* (DEFAULT-XENV)))
+(defun close-window (&optional (*xenv* (default-xenv)))
   "Ferme la fenêtre et le serveur spécifiée par la structure *xenv*."
-  (WHEN (XENV-DISPLAY *XENV*)
-    (XLIB:FREE-GCONTEXT  (XENV-WCONTEXT *XENV*))
-    (XLIB:FREE-GCONTEXT  (XENV-BCONTEXT *XENV*))
-    (XLIB:DESTROY-WINDOW (XENV-WINDOW   *XENV*))
-    (XLIB:FREE-PIXMAP    (XENV-BACKUP   *XENV*))
-    (XLIB:DISPLAY-FORCE-OUTPUT (XENV-DISPLAY  *XENV*))
-    (XLIB:CLOSE-DISPLAY        (XENV-DISPLAY  *XENV*))
-    (SETF (XENV-BCONTEXT *XENV*) NIL
-          (XENV-BACKUP   *XENV*) NIL
-          (XENV-WCONTEXT *XENV*) NIL
-          (XENV-WINDOW   *XENV*) NIL
-          (XENV-DISPLAY  *XENV*) NIL))
-  NIL)
-
-(DEFVAR *WINDOW-MANAGER-ENCODING* CHARSET:ISO-8859-1)
-
-(DEFUN (SETF WM-CLASS) (WM-CLASS &OPTIONAL (*XENV* (DEFAULT-XENV)))
-  (LET ((BYTES (CONCATENATE 'VECTOR
-                 (EXT:CONVERT-STRING-TO-BYTES
-                  (FIRST  WM-CLASS) *WINDOW-MANAGER-ENCODING*) #(0)
-                 (EXT:CONVERT-STRING-TO-BYTES
-                  (SECOND WM-CLASS) *WINDOW-MANAGER-ENCODING*) #(0))))
-    (XLIB:CHANGE-PROPERTY (XENV-WINDOW *XENV*) :WM_CLASS     BYTES :STRING 8))
-  WM-CLASS)
-
-(DEFUN WM-CLASS (&OPTIONAL (*XENV* (DEFAULT-XENV)))
-  (LET ((BYTES (XLIB:GET-PROPERTY (XENV-WINDOW *XENV*) :WM_CLASS :TYPE :STRING
-                                  :RESULT-TYPE 'VECTOR)))
-    (WHEN BYTES
-      (LET ((FIRST-ZERO  (POSITION 0 BYTES)))
-        (LIST (EXT:CONVERT-STRING-FROM-BYTES
-               BYTES *WINDOW-MANAGER-ENCODING*
-               :END FIRST-ZERO)
-              (EXT:CONVERT-STRING-FROM-BYTES
-               BYTES *WINDOW-MANAGER-ENCODING*
-               :START (1+ FIRST-ZERO)
-               :END   (POSITION 0 BYTES :START (1+ FIRST-ZERO))))))))
+  (when (xenv-display *xenv*)
+    (xlib:free-gcontext  (xenv-wcontext *xenv*))
+    (xlib:free-gcontext  (xenv-bcontext *xenv*))
+    (xlib:destroy-window (xenv-window   *xenv*))
+    (xlib:free-pixmap    (xenv-backup   *xenv*))
+    (xlib:display-force-output (xenv-display  *xenv*))
+    (xlib:close-display        (xenv-display  *xenv*))
+    (setf (xenv-bcontext *xenv*) nil
+          (xenv-backup   *xenv*) nil
+          (xenv-wcontext *xenv*) nil
+          (xenv-window   *xenv*) nil
+          (xenv-display  *xenv*) nil))
+  nil)
 
 
-(DEFUN (SETF WINDOW-TITLE) (TITLE &OPTIONAL (*XENV* (DEFAULT-XENV)))
+(defvar *window-manager-encoding* :iso-8859-1)
+(defun encode-string (string &key (start 0) (end (length string)))
+  (string-to-octets string
+                    :encoding *window-manager-encoding*
+                    :start start :end end))
+(defun decode-string (octets &key (start 0) (end (length octets)))
+  (octets-to-string octets
+                    :encoding *window-manager-encoding*
+                    :start start :end end))
+
+
+
+(defun (setf wm-class) (wm-class &optional (*xenv* (default-xenv)))
+  (let ((bytes (concatenate 'vector
+                            (encode-string (first  wm-class)) #(0)
+                            (encode-string (second wm-class)) #(0))))
+    (xlib:change-property (xenv-window *xenv*) :wm_class bytes :string 8))
+  wm-class)
+
+
+(defun wm-class (&optional (*xenv* (default-xenv)))
+  (let ((bytes (xlib:get-property (xenv-window *xenv*) :wm_class :type :string
+                                                                 :result-type 'vector)))
+    (when bytes
+      (let ((first-zero (position 0 bytes)))
+        (list (decode-string bytes :end first-zero)
+              (decode-string bytes
+                             :start (1+ first-zero)
+                             :end   (position 0 bytes :start (1+ first-zero))))))))
+
+
+(defun (setf window-title) (title &optional (*xenv* (default-xenv)))
   "Change le titre de la fenêtre."
-  (LET ((BYTES (EXT:CONVERT-STRING-TO-BYTES TITLE *WINDOW-MANAGER-ENCODING*)))
-    (XLIB:CHANGE-PROPERTY (XENV-WINDOW *XENV*) :WM_NAME      BYTES :STRING 8)
-    (XLIB:CHANGE-PROPERTY (XENV-WINDOW *XENV*) :WM_ICON_NAME BYTES :STRING 8))
-  TITLE)
+  (let ((bytes (encode-string title)))
+    (xlib:change-property (xenv-window *xenv*) :wm_name      bytes :string 8)
+    (xlib:change-property (xenv-window *xenv*) :wm_icon_name bytes :string 8))
+  title)
 
-(DEFUN WINDOW-TITLE (&OPTIONAL (*XENV* (DEFAULT-XENV)))
+(defun window-title (&optional (*xenv* (default-xenv)))
   "Retourne le titre de la fenêtre."
-  (LET ((BYTES (XLIB:GET-PROPERTY (XENV-WINDOW *XENV*) :WM_NAME :TYPE :STRING
-                                  :RESULT-TYPE 'VECTOR)))
-    (WHEN BYTES
-      (EXT:CONVERT-STRING-FROM-BYTES BYTES *WINDOW-MANAGER-ENCODING*))))
+  (let ((bytes (xlib:get-property (xenv-window *xenv*) :wm_name :type :string
+                                                                :result-type 'vector)))
+    (when bytes
+      (decode-string bytes))))
 
 
-(DEFUN WINDOW-WIDTH (&OPTIONAL (*XENV* (DEFAULT-XENV)))
-"Retourne la largeur de la fenêtre."
-  (XLIB:DRAWABLE-WIDTH (XENV-WINDOW *XENV*)))
+(defun window-width (&optional (*xenv* (default-xenv)))
+  "Retourne la largeur de la fenêtre."
+  (xlib:drawable-width (xenv-window *xenv*)))
 
-(DEFUN WINDOW-HEIGHT (&OPTIONAL (*XENV* (DEFAULT-XENV)))
-"Retourne la hauteur de la fenêtre."
-  (XLIB:DRAWABLE-HEIGHT (XENV-WINDOW *XENV*)))
+(defun window-height (&optional (*xenv* (default-xenv)))
+  "Retourne la hauteur de la fenêtre."
+  (xlib:drawable-height (xenv-window *xenv*)))
 
 
-(DEFUN PROCESS-EVENTS (XENV &KEY TIMEOUT)
+(defun process-events (xenv &key timeout)
   "Traite un évènement X pour l'environnement X XENV. 
 Retourne lorsqu'un évènement est traité, ou si TIMEOUT est non NIL, 
 quand le nombre de secondes indiqué est écoulé."
-  (XLIB:EVENT-CASE ((XENV-DISPLAY XENV) :TIMEOUT TIMEOUT)
-    (:EXPOSURE (COUNT) ; Discard all but final :exposure then display the menu
-     (WHEN (ZEROP COUNT) (REDRAW-WINDOW XENV))
-     T)
-    (OTHERWISE ()                  ; Ignore and discard any other event
-     T)))
+  (xlib:event-case ((xenv-display xenv) :timeout timeout)
+    (:exposure (count) ; Discard all but final :exposure then display the menu
+     (when (zerop count) (redraw-window xenv))
+     t)
+    (otherwise ()                  ; Ignore and discard any other event
+     t)))
 
 
-(DEFMACRO WITH-WINDOW ((&KEY XENV DISPLAY-NAME HOST DISPLAY-NUMBER
-                             (X 0) (Y 0) (WIDTH 512) (HEIGHT 342)
-                             (TITLE) (WM-CLASS '("lisp""LISP")))
-                       &BODY BODY)
+(defmacro with-window ((&key xenv display-name host display-number
+                          (x 0) (y 0) (width 512) (height 342)
+                          (title "IPL LISP") (wm-class '("lisp" "LISP")))
+                       &body body)
   "Si un display est spécifié, alors ouvre une nouvelle fenêtre, sinon utilise
 la structure xenv, ou *xenv*.
 Si une nouvelle fenêtre a été ouverte, alors elle est fermée à la fin.
 BODY doit appeler PROCESS-EVENTS périodiquement."
-  (IF (OR (NULL XENV) DISPLAY-NAME HOST DISPLAY-NUMBER)
+  (if (or (null xenv) display-name host display-number)
       ;; nouvelle fenêtre
-      `(LET ((*XENV* (OPEN-WINDOW :DISPLAY-NAME ,DISPLAY-NAME
-                                  :HOST ,HOST :DISPLAY-NUMBER ,DISPLAY-NUMBER
-                                  :X ,X :Y ,Y :WIDTH ,WIDTH :HEIGHT ,HEIGHT)))
-         (UNWIND-PROTECT (PROGN ,@BODY) (CLOSE-WINDOW *XENV*)))
+      `(let ((*xenv* (open-window :display-name ,display-name
+                                  :host ,host :display-number ,display-number
+                                  :x ,x :y ,y :width ,width :height ,height
+                                  :wm-class ',wm-class
+                                  :title ,title)))
+         (unwind-protect (progn ,@body) (close-window *xenv*)))
       ;; xenv existant
-      `(LET ((*XENV* (OR ,XENV (DEFAULT-XENV)))) ,@BODY)))
+      `(let ((*xenv* (or ,xenv (default-xenv)))) ,@body)))
 
 
-(DEFMACRO DO-WINDOW ((&KEY XENV DISPLAY-NAME HOST DISPLAY-NUMBER
-                           (X 0) (Y 0) (WIDTH 512) (HEIGHT 342)
-                           (TITLE) (WM-CLASS '("lisp""LISP"))
-                           (TIMEOUT NIL))
-                     &BODY BODY)
+(defmacro do-window ((&key xenv display-name host display-number
+                        (x 0) (y 0) (width 512) (height 342)
+                        (title "IPL LISP") (wm-class '("lisp" "LISP"))
+                        (timeout nil))
+                     &body body)
   "Si un display est spécifié, alors ouvre une nouvelle fenêtre, sinon utilise
 la structure xenv, ou *xenv*.
 Si une nouvelle fenêtre a été ouverte, alors elle est fermée à la fin.
 BODY est exécuté, puis PROCESS-EVENT est appelé, avec le TIMEOUT specifié.
 RETURN-FROM-DO-WINDOW doit être appelé pour sortir de la boucle."
-  (LET ((NAME (GENSYM)))
-    (IF (OR (NULL XENV) DISPLAY-NAME HOST DISPLAY-NUMBER)
+  (let ((name (gensym)))
+    (if (or (null xenv) display-name host display-number)
         ;; nouvelle fenêtre
-        `(LET ((*XENV* (OPEN-WINDOW :DISPLAY-NAME ,DISPLAY-NAME
-                                    :HOST ,HOST :DISPLAY-NUMBER ,DISPLAY-NUMBER
-                                    :X ,X :Y ,Y :WIDTH ,WIDTH :HEIGHT ,HEIGHT)))
-           (UNWIND-PROTECT
-                (LOOP :NAMED ,NAME :DO
-                   (FLET ((RETURN-FROM-DO-WINDOW (&OPTIONAL RESULT)
-                            (RETURN-FROM ,NAME RESULT)))
-                     ,@BODY)
-                   (PROCESS-EVENTS *XENV* :TIMEOUT ,TIMEOUT))
-             (CLOSE-WINDOW *XENV*)))
+        `(let ((*xenv* (open-window :display-name ,display-name
+                                    :host ,host :display-number ,display-number
+                                    :x ,x :y ,y :width ,width :height ,height
+                                    :title ,title :wm-class ',wm-class)))
+           (unwind-protect
+                (loop :named ,name :do
+                  (flet ((return-from-do-window (&optional result)
+                           (return-from ,name result)))
+                    ,@body)
+                  (process-events *xenv* :timeout ,timeout))
+             (close-window *xenv*)))
         ;; xenv existant
-        `(LET ((*XENV* (OR ,XENV (DEFAULT-XENV))))
-           (LOOP :NAMED ,NAME :DO
-                   (FLET ((RETURN-FROM-DO-WINDOW (&OPTIONAL RESULT)
-                            (RETURN-FROM ,NAME RESULT)))
-                     ,@BODY)
-                   (PROCESS-EVENTS *XENV* :TIMEOUT ,TIMEOUT))))))
+        `(let ((*xenv* (or ,xenv (default-xenv))))
+           (loop :named ,name :do
+             (flet ((return-from-do-window (&optional result)
+                      (return-from ,name result)))
+               ,@body)
+             (process-events *xenv* :timeout ,timeout))))))
 
 
 ;;;--------------------
 ;;; Redraw
 ;;;--------------------
 
-(DEFUN REDRAW-WINDOW (&OPTIONAL (*XENV* (DEFAULT-XENV)))
+(defun redraw-window (&optional (*xenv* (default-xenv)))
   "Rafraichi la fenêtre."
-  (LET ((DISPLAY  (XENV-DISPLAY  *XENV*))
-        (WINDOW   (XENV-WINDOW   *XENV*))
-        (WCONTEXT (XENV-WCONTEXT *XENV*))
-        (BACKUP   (XENV-BACKUP   *XENV*)))
-    (XLIB:COPY-AREA BACKUP WCONTEXT 0 0
-                    (XLIB:DRAWABLE-WIDTH  WINDOW)
-                    (XLIB:DRAWABLE-HEIGHT WINDOW)
-                    WINDOW 0 0)
-    (XLIB:DISPLAY-FORCE-OUTPUT DISPLAY))
-  (VALUES))
+  (let ((display  (xenv-display  *xenv*))
+        (window   (xenv-window   *xenv*))
+        (wcontext (xenv-wcontext *xenv*))
+        (backup   (xenv-backup   *xenv*)))
+    (xlib:copy-area backup wcontext 0 0
+                    (xlib:drawable-width  window)
+                    (xlib:drawable-height window)
+                    window 0 0)
+    (xlib:display-force-output display))
+  (values))
 
 
-(DEFUN CLEAR-WINDOW (&OPTIONAL (*XENV* (DEFAULT-XENV)))
+(defun clear-window (&optional (*xenv* (default-xenv)))
   "Efface le contenu de la fenêtre."
-  (LET* ((DISPLAY  (XENV-DISPLAY  *XENV*))
-         (SCREEN   (XLIB:DISPLAY-DEFAULT-SCREEN DISPLAY))
-         (WHITE    (XLIB:SCREEN-WHITE-PIXEL SCREEN))
-         (BACKUP   (XENV-BACKUP   *XENV*))
-         (BCONTEXT (XENV-BCONTEXT *XENV*))
-         (OLDFORE  (XLIB:GCONTEXT-FOREGROUND BCONTEXT))
-         (WINDOW   (XENV-WINDOW   *XENV*)))
-    (UNWIND-PROTECT
-         (PROGN
-           (SETF (XLIB:GCONTEXT-FOREGROUND BCONTEXT) WHITE)
-           (XLIB:DRAW-RECTANGLE BACKUP BCONTEXT 0 0
-                                (XLIB:DRAWABLE-WIDTH  BACKUP)
-                                (XLIB:DRAWABLE-HEIGHT BACKUP) T))
-      (SETF (XLIB:GCONTEXT-FOREGROUND BCONTEXT) OLDFORE))
-    (XLIB:CLEAR-AREA WINDOW)
-    (XLIB:DISPLAY-FORCE-OUTPUT DISPLAY))
-  (VALUES))
+  (let* ((display  (xenv-display  *xenv*))
+         (screen   (xlib:display-default-screen display))
+         (white    (xlib:screen-white-pixel screen))
+         (backup   (xenv-backup   *xenv*))
+         (bcontext (xenv-bcontext *xenv*))
+         (oldfore  (xlib:gcontext-foreground bcontext))
+         (window   (xenv-window   *xenv*)))
+    (unwind-protect
+         (progn
+           (setf (xlib:gcontext-foreground bcontext) white)
+           (xlib:draw-rectangle backup bcontext 0 0
+                                (xlib:drawable-width  backup)
+                                (xlib:drawable-height backup) t))
+      (setf (xlib:gcontext-foreground bcontext) oldfore))
+    (xlib:clear-area window)
+    (xlib:display-force-output display))
+  (values))
 
 
 ;;;--------------------
 ;;; Colors
 ;;;--------------------
 
-(DEFUN RGB (R G B)
+(defun rgb (r g b)
   "Retourne une couleur spécifiée par ses composantes rouge, verte et bleue."
-  (DPB R  (BYTE 8 16) (DPB G (BYTE 8 8) (LDB (BYTE 8 0) B))))
+  (dpb r  (byte 8 16) (dpb g (byte 8 8) (ldb (byte 8 0) b))))
 
 (defparameter *white*      (rgb #xff #xff #xff) "Couleur: blanc")
-(defparameter *light-gray* (rgb #xAA #xAA #xAA) "Couleur: gris clair")
+(defparameter *light-gray* (rgb #xaa #xaa #xaa) "Couleur: gris clair")
 (defparameter *dark-gray*  (rgb #x55 #x55 #x55) "Couleur: gris foncé")
 (defparameter *black*      (rgb #x00 #x00 #x00) "Couleur: noir")
 
-(DEFUN SET-FOREGROUND-COLOR (WINDOW CONTEXT COLOR)
+(defun set-foreground-color (window context color)
   "Change la couleur du pinceau du contexte."
-  (DECLARE (IGNORE WINDOW))
-  (SETF (XLIB:GCONTEXT-FOREGROUND CONTEXT) COLOR))
+  (declare (ignore window))
+  (setf (xlib:gcontext-foreground context) color))
 
-(DEFUN SET-RGB-COLOR (R G B &KEY (XENV (DEFAULT-XENV)))
+(defun set-rgb-color (r g b &key (xenv (default-xenv)))
   "Change la couleur spécifiée par ses composantes rouge, verte et bleue,
   du pinceau du contexte."
-  (SET-COLOR (RGB R G B) :XENV XENV))
+  (set-color (rgb r g b) :xenv xenv))
 
-(DEFUN SET-COLOR (COLOR &KEY (XENV (DEFAULT-XENV)))
+(defun set-color (color &key (xenv (default-xenv)))
   "Change la couleur du pinceau."
-  (SETF (XLIB:GCONTEXT-FOREGROUND (XENV-WCONTEXT XENV)) COLOR)
-  (SETF (XLIB:GCONTEXT-FOREGROUND (XENV-BCONTEXT XENV)) COLOR))
+  (setf (xlib:gcontext-foreground (xenv-wcontext xenv)) color)
+  (setf (xlib:gcontext-foreground (xenv-bcontext xenv)) color))
 
 
 ;;;--------------------
 ;;; Drawing
 ;;;--------------------
 
-(DEFSTRUCT (POINT (:TYPE LIST) (:CONC-NAME NIL)) X Y)
-(DEFUN POINT (X Y) "Retourne un nouveau point 2D." (MAKE-POINT :X X :Y Y))
+(defstruct (point (:type list) (:conc-name nil)) x y)
+(defun point (x y) "Retourne un nouveau point 2D." (make-point :x x :y y))
 
 
-(DEFUN DRAW-POINT-AT (X Y  &KEY (XENV (DEFAULT-XENV)))
+(defun draw-point-at (x y  &key (xenv (default-xenv)))
   "Dessine un point aux coordonnées X,Y indiquées."
-  (LET* ((HEIGHT (XLIB:DRAWABLE-HEIGHT (XENV-WINDOW XENV)))
-         (X      (ROUND X))
-         (Y      (- HEIGHT (ROUND Y))))
-    (XLIB:DRAW-POINT (XENV-BACKUP XENV) (XENV-BCONTEXT XENV) X Y)
-    (XLIB:DRAW-POINT (XENV-WINDOW XENV) (XENV-WCONTEXT XENV) X Y)
-    (XLIB:DISPLAY-FORCE-OUTPUT (XENV-DISPLAY XENV)))
-  (VALUES))
+  (let* ((height (xlib:drawable-height (xenv-window xenv)))
+         (x      (round x))
+         (y      (- height (round y))))
+    (xlib:draw-point (xenv-backup xenv) (xenv-bcontext xenv) x y)
+    (xlib:draw-point (xenv-window xenv) (xenv-wcontext xenv) x y)
+    (xlib:display-force-output (xenv-display xenv)))
+  (values))
 
 
-(DEFUN DRAW-POINT (POINT  &KEY (XENV (DEFAULT-XENV)))
+(defun draw-point (point  &key (xenv (default-xenv)))
   "Dessine le POINT."
-  (DRAW-POINT-AT (X POINT) (Y POINT) XENV))
+  (draw-point-at (x point) (y point) :xenv xenv))
 
 
-(DEFUN DRAW-POINTS (POINTS  &KEY (XENV (DEFAULT-XENV)))
+(defun draw-points (points  &key (xenv (default-xenv)))
   "Dessine une list de POINTS."
-  (LET* ((HEIGHT (XLIB:DRAWABLE-HEIGHT (XENV-WINDOW XENV)))
-         (POINTS (MAPCAR (LAMBDA (PT) (LIST (ROUND (X PT)) (- HEIGHT (ROUND (Y PT)))))
-                         (CONS (CAR (LAST POINTS)) POINTS))))
-    (XLIB:DRAW-POINTS (XENV-BACKUP XENV) (XENV-BCONTEXT XENV) POINTS)
-    (XLIB:DRAW-POINTS (XENV-WINDOW XENV) (XENV-WCONTEXT XENV) POINTS)
-    (XLIB:DISPLAY-FORCE-OUTPUT (XENV-DISPLAY XENV)))
-  (VALUES))
+  (let* ((height (xlib:drawable-height (xenv-window xenv)))
+         (points (mapcar (lambda (pt) (list (round (x pt)) (- height (round (y pt)))))
+                         (cons (car (last points)) points))))
+    (xlib:draw-points (xenv-backup xenv) (xenv-bcontext xenv) points)
+    (xlib:draw-points (xenv-window xenv) (xenv-wcontext xenv) points)
+    (xlib:display-force-output (xenv-display xenv)))
+  (values))
 
 
-(DEFUN DRAW-LINE (X1 Y1 X2 Y2 &KEY (XENV (DEFAULT-XENV)))
+(defun draw-line (x1 y1 x2 y2 &key (xenv (default-xenv)))
   "Dessine une ligne entre les points X1,Y1 et X2,Y2."
-  (LET* ((HEIGHT (XLIB:DRAWABLE-HEIGHT (XENV-WINDOW XENV)))
-         (X1 (ROUND X1))
-         (X2 (ROUND X2))
-         (Y1 (- HEIGHT (ROUND Y1)))
-         (Y2 (- HEIGHT (ROUND Y2))))
-    (XLIB:DRAW-LINE (XENV-BACKUP XENV) (XENV-BCONTEXT XENV) X1 Y1 X2 Y2)
-    (XLIB:DRAW-LINE (XENV-WINDOW XENV) (XENV-WCONTEXT XENV) X1 Y1 X2 Y2)
-    (XLIB:DISPLAY-FORCE-OUTPUT (XENV-DISPLAY XENV)))
-  (VALUES))
+  (let* ((height (xlib:drawable-height (xenv-window xenv)))
+         (x1 (round x1))
+         (x2 (round x2))
+         (y1 (- height (round y1)))
+         (y2 (- height (round y2))))
+    (xlib:draw-line (xenv-backup xenv) (xenv-bcontext xenv) x1 y1 x2 y2)
+    (xlib:draw-line (xenv-window xenv) (xenv-wcontext xenv) x1 y1 x2 y2)
+    (xlib:display-force-output (xenv-display xenv)))
+  (values))
 
 
-(DEFUN DRAW-POLYGON (POINTS FILLP &KEY (XENV (DEFAULT-XENV)))
+(defun draw-polygon (points fillp &key (xenv (default-xenv)))
   "Dessine un polygone défini par ses sommets POINTS. 
 Si FILLP est vrai, alors le rempli."
-  (LET* ((HEIGHT (XLIB:DRAWABLE-HEIGHT (XENV-WINDOW XENV)))
-         (POINTS (MAPCAN (LAMBDA (PT) (LIST (ROUND (X PT)) (- HEIGHT (ROUND (Y PT)))))
-                           (CONS (CAR (LAST POINTS)) POINTS))))
-    (XLIB:DRAW-LINES (XENV-BACKUP XENV) (XENV-BCONTEXT XENV)
-                     POINTS :FILL-P FILLP)
-    (XLIB:DRAW-LINES (XENV-WINDOW XENV) (XENV-WCONTEXT XENV)
-                     POINTS :FILL-P FILLP)
-    (XLIB:DISPLAY-FORCE-OUTPUT (XENV-DISPLAY XENV)))
-  (VALUES))
+  (let* ((height (xlib:drawable-height (xenv-window xenv)))
+         (points (mapcan (lambda (pt) (list (round (x pt)) (- height (round (y pt)))))
+                         (cons (car (last points)) points))))
+    (xlib:draw-lines (xenv-backup xenv) (xenv-bcontext xenv)
+                     points :fill-p fillp)
+    (xlib:draw-lines (xenv-window xenv) (xenv-wcontext xenv)
+                     points :fill-p fillp)
+    (xlib:display-force-output (xenv-display xenv)))
+  (values))
 
 
-(DEFUN DRAW-RECTANGLE (X Y WIDTH HEIGHT FILLP &KEY (XENV (DEFAULT-XENV)))
+(defun draw-rectangle (x y width height fillp &key (xenv (default-xenv)))
 
   "Dessine un rectangle parallèle aux coordonnées, dont le point en
 bas à gauche est X,Y, et de largeur WIDTH et de hauteur HEIGHT.
 Si FILLP est vrai, alors le rempli."
-  (LET* ((WHEIGHT (XLIB:DRAWABLE-HEIGHT (XENV-WINDOW XENV)))
-         (WIDTH  (ROUND WIDTH))
-         (HEIGHT (ROUND HEIGHT))
-         (X      (ROUND X))
-         (Y      (- WHEIGHT (ROUND Y) HEIGHT)))
-    (XLIB:DRAW-RECTANGLE (XENV-BACKUP XENV) (XENV-BCONTEXT XENV)
-                         X Y WIDTH HEIGHT FILLP)
-    (XLIB:DRAW-RECTANGLE (XENV-WINDOW XENV) (XENV-WCONTEXT XENV)
-                         X Y WIDTH HEIGHT FILLP)
-    (XLIB:DISPLAY-FORCE-OUTPUT (XENV-DISPLAY XENV)))
-  (VALUES))
+  (let* ((wheight (xlib:drawable-height (xenv-window xenv)))
+         (width  (round width))
+         (height (round height))
+         (x      (round x))
+         (y      (- wheight (round y) height)))
+    (xlib:draw-rectangle (xenv-backup xenv) (xenv-bcontext xenv)
+                         x y width height fillp)
+    (xlib:draw-rectangle (xenv-window xenv) (xenv-wcontext xenv)
+                         x y width height fillp)
+    (xlib:display-force-output (xenv-display xenv)))
+  (values))
 
 
-(DEFUN DRAW-ARC (X Y WIDTH HEIGHT angle-1 angle-2 FILLP
-                 &KEY (XENV (DEFAULT-XENV)))
+(defun draw-arc (x y width height angle-1 angle-2 fillp
+                 &key (xenv (default-xenv)))
 
   "Dessine un arc parallèle aux coordonnées, dont le point en
 bas à gauche est X,Y, et de largeur WIDTH et de hauteur HEIGHT.
 Si FILLP est vrai, alors le rempli.
 Les angles sont donnés en radian comptés sur l'axe Ox"
-  (LET* ((WHEIGHT (XLIB:DRAWABLE-HEIGHT (XENV-WINDOW XENV)))
-         (WIDTH  (ROUND WIDTH))
-         (HEIGHT (ROUND HEIGHT))
-         (X      (ROUND X))
-         (Y      (- WHEIGHT (ROUND Y) HEIGHT)))
-    (XLIB:DRAW-ARC (XENV-BACKUP XENV) (XENV-BCONTEXT XENV)
-                   X Y WIDTH HEIGHT angle-1 angle-2 fillp)
-    (XLIB:DRAW-ARC (XENV-WINDOW XENV) (XENV-BCONTEXT XENV)
-                   X Y WIDTH HEIGHT angle-1 angle-2 fillp)
-    (XLIB:DISPLAY-FORCE-OUTPUT (XENV-DISPLAY XENV)))
-  (VALUES))
+  (let* ((wheight (xlib:drawable-height (xenv-window xenv)))
+         (width  (round width))
+         (height (round height))
+         (x      (round x))
+         (y      (- wheight (round y) height)))
+    (xlib:draw-arc (xenv-backup xenv) (xenv-bcontext xenv)
+                   x y width height angle-1 angle-2 fillp)
+    (xlib:draw-arc (xenv-window xenv) (xenv-bcontext xenv)
+                   x y width height angle-1 angle-2 fillp)
+    (xlib:display-force-output (xenv-display xenv)))
+  (values))
 
 
-(defun draw-text (x y string &KEY (fillp t) (XENV (DEFAULT-XENV)))
+(defun draw-text (x y string &key (fillp t) (xenv (default-xenv)))
   "Dessine le texte STRING aux coordonnées X,Y."
-  (LET* ((HEIGHT (XLIB:DRAWABLE-HEIGHT (XENV-WINDOW XENV)))
-         (X      (ROUND X))
-         (Y      (- HEIGHT (ROUND Y))))
+  (let* ((height (xlib:drawable-height (xenv-window xenv)))
+         (x      (round x))
+         (y      (- height (round y))))
     (if fillp
         (progn
           (xlib:draw-image-glyphs (xenv-backup xenv) (xenv-bcontext xenv)
@@ -465,7 +475,7 @@ Les angles sont donnés en radian comptés sur l'axe Ox"
         (progn
           (xlib:draw-glyphs (xenv-backup xenv) (xenv-bcontext xenv) x y string)
           (xlib:draw-glyphs (xenv-window xenv) (xenv-wcontext xenv) x y string)))
-    (XLIB:DISPLAY-FORCE-OUTPUT (XENV-DISPLAY XENV)))
+    (xlib:display-force-output (xenv-display xenv)))
   (values))
 
 ;;;-------------------------------------------
@@ -478,68 +488,64 @@ Les angles sont donnés en radian comptés sur l'axe Ox"
 ;;; Tests
 ;;;--------------------
 
-(DEFUN TEST-1 ()
-  (LET ((TIME (GET-UNIVERSAL-TIME))) 
-    (DO-WINDOW (:TIMEOUT 1)
-      (WHEN (<= 1 (- (GET-UNIVERSAL-TIME) TIME))
-        (SETF TIME (GET-UNIVERSAL-TIME))
-        (SET-RGB-COLOR (RANDOM 256)  (RANDOM 256)  (RANDOM 256))
-        (DRAW-RECTANGLE (RANDOM 500) (RANDOM 300)
-                        (RANDOM 500) (RANDOM 300) T)))))
+(defun test-1 ()
+  (let ((time (get-universal-time))) 
+    (do-window (:timeout 1)
+      (when (<= 1 (- (get-universal-time) time))
+        (setf time (get-universal-time))
+        (set-rgb-color (random 256)  (random 256)  (random 256))
+        (draw-rectangle (random 500) (random 300)
+                        (random 500) (random 300) t)))))
 
 
-(DEFUN TEST-PROPERTIES ()
-  (WITH-WINDOW ()
-    (PRINT (WINDOW-TITLE))
-    (SLEEP 1)
-    (PRINT (SETF (WINDOW-TITLE) "¿Donde esta la casa de mi amigo?"))
-    (SLEEP 1)
-    (PRINT (WINDOW-TITLE))
-    (SLEEP 10)))
+(defun test-properties ()
+  (with-window ()
+    (print (window-title))
+    (sleep 1)
+    (print (setf (window-title) "¿Donde esta la casa de mi amigo?"))
+    (sleep 1)
+    (print (window-title))
+    (sleep 10)))
 
 
 
-(defun test-nx ()
-  
-  (defclass view ()
-    ((left   :accessor left   :initarg :left)
-     (bottom :accessor bottom :initarg :bottom)
-     (width  :accessor width  :initarg :width)
-     (height :accessor height :initarg :height)))
+#-(and) (progn
+          
+          (defclass view ()
+            ((left   :accessor left   :initarg :left)
+             (bottom :accessor bottom :initarg :bottom)
+             (width  :accessor width  :initarg :width)
+             (height :accessor height :initarg :height)))
 
-  (defmethod top   ((self view)) (+ (bottom self) (height self)))
-  (defmethod right ((self view)) (+ (left self) (width self)))
+          (defmethod top   ((self view)) (+ (bottom self) (height self)))
+          (defmethod right ((self view)) (+ (left self) (width self)))
 
-  (defclass button (view)
-    ((title :accessor title :initarg :title)))
+          (defclass button (view)
+            ((title :accessor title :initarg :title)))
 
-  (defmethod draw ((self button))
-    (set-color *light-gray*)
-    (draw-rectangle (left self) (bottom self) (width self) (height self) t)
-    (set-color *black*)
-    (draw-rectangle (left self) (bottom self) (width self) (height self) nil)
-    (set-color *white*)
-    (draw-line (left self) (bottom self) (left  self) (top self))
-    (draw-line (left self) (top    self) (right self) (top self))
-    (set-color *dark-gray*)
-    (draw-point-at (left self) (bottom self))
-    (draw-point-at (right self) (top self))
-    (when (slot-boundp self 'title)
-      (set-color *black*)
-      (draw-text (+ 4 (left self)) (+ 5 (bottom self))
-                 (if (stringp (title self))
-                     (title self)
-                     (format nil "~A" (title self))))))
-
-      
+          (defmethod draw ((self button))
+            (set-color *light-gray*)
+            (draw-rectangle (left self) (bottom self) (width self) (height self) t)
+            (set-color *black*)
+            (draw-rectangle (left self) (bottom self) (width self) (height self) nil)
+            (set-color *white*)
+            (draw-line (left self) (bottom self) (left  self) (top self))
+            (draw-line (left self) (top    self) (right self) (top self))
+            (set-color *dark-gray*)
+            (draw-point-at (left self) (bottom self))
+            (draw-point-at (right self) (top self))
+            (when (slot-boundp self 'title)
+              (set-color *black*)
+              (draw-text (+ 4 (left self)) (+ 5 (bottom self))
+                         (if (stringp (title self))
+                             (title self)
+                             (format nil "~A" (title self))))))
+          
                                         ;(progn (close-window)(setf *xenv* nil))
-  (set-color *light-gray*)
-  (draw-rectangle 0 0 (window-width) (window-height) t)
-  (draw (make-instance 'button
-          :left 10 :bottom 40 :width 70 :height 20 :title "OK")))
-
-
-
+          (set-color *light-gray*)
+          (draw-rectangle 0 0 (window-width) (window-height) t)
+          (draw (make-instance 'button
+                               :left 10 :bottom 40 :width 70 :height 20 :title "OK")))
 
 
 ;;; Local Variables:

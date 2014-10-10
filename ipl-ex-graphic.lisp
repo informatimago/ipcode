@@ -33,86 +33,83 @@
 ;;;;    Software Foundation, Inc., 59 Temple Place, Suite 330,
 ;;;;    Boston, MA 02111-1307 USA
 ;;;;**************************************************************************
-
-(IN-PACKAGE "IPL-USER")
-
-(PRINT '(IN-PACKAGE "IPL-USER"))
+(in-package "IPL-USER")
+(print '(in-package "IPL-USER"))
 
 ;;;--------------------
 ;;; Example 1
 ;;;--------------------
 
-(DEFUN PT-ON-CIRCLE (RADIUS CENTER ANGLE)
-  (POINT (+ (* RADIUS (SIN ANGLE)) (X CENTER))
-         (+ (* RADIUS (COS ANGLE)) (Y CENTER))))
+(defun pt-on-circle (radius center angle)
+  (point (+ (* radius (sin angle)) (x center))
+         (+ (* radius (cos angle)) (y center))))
 
 
-(DEFUN DRAW-STEP (POLY)
-  (SET-RGB-COLOR 255 255 255)
-  (DRAW-RECTANGLE 0     0  240  40 T)
-  (DRAW-RECTANGLE 0    40   40 200 T)
-  (DRAW-RECTANGLE 40  200  200  40 T)
-  (DRAW-RECTANGLE 200  40   40 160 T)
-  (SET-RGB-COLOR 192 192 192)
-  (DRAW-RECTANGLE  40 40 160 160 T)
-  (SET-RGB-COLOR 0 0 0)
-  (DRAW-POLYGON POLY nil))
+(defun draw-step (poly)
+  (set-rgb-color 255 255 255)
+  (draw-rectangle 0     0  240  40 t)
+  (draw-rectangle 0    40   40 200 t)
+  (draw-rectangle 40  200  200  40 t)
+  (draw-rectangle 200  40   40 160 t)
+  (set-rgb-color 192 192 192)
+  (draw-rectangle  40 40 160 160 t)
+  (set-rgb-color 0 0 0)
+  (draw-polygon poly nil))
 
 
-(DEFUN ROTATING-SQUARE ()
-  (DO-WINDOW (:TITLE "Examples -- Rotating Square" :TIMEOUT 0.02)
-    (LOOP
-       :WITH PI/2 = (/ PI 2)
-       :WITH 2PI = (* 2 PI)
-       :WITH 3PI/2 = (/ PI 2/3)
-       :WITH PI/180 = (/ PI 180)
-       :WITH RADIUS = 100
-       :WITH CENTER = (POINT 120 120)
-       :FOR ANGLE :FROM 0 TO 89
-       :FOR RADIANS = (* PI/180 ANGLE)
-       :DO (DRAW-STEP
-           (LIST (PT-ON-CIRCLE RADIUS CENTER RADIANS)
-                 (PT-ON-CIRCLE RADIUS CENTER (+ PI/2 RADIANS))
-                 (PT-ON-CIRCLE RADIUS CENTER (+ PI RADIANS))
-                 (PT-ON-CIRCLE RADIUS CENTER (+ 3PI/2 RADIANS))))
-         (SLEEP 0.02))))
+(defun rotating-square ()
+  (do-window (:title "Examples -- Rotating Square" :timeout 0.02)
+    (loop
+       :with pi/2 = (/ pi 2)
+       :with 3pi/2 = (/ pi 2/3)
+       :with pi/180 = (/ pi 180)
+       :with radius = 100
+       :with center = (point 120 120)
+       :for angle :from 0 to 89
+       :for radians = (* pi/180 angle)
+       :do (draw-step
+           (list (pt-on-circle radius center radians)
+                 (pt-on-circle radius center (+ pi/2 radians))
+                 (pt-on-circle radius center (+ pi radians))
+                 (pt-on-circle radius center (+ 3pi/2 radians))))
+         (sleep 0.01))))
 
-(PRINT '(ROTATING-SQUARE))
+(print '(rotating-square))
 
 
 ;;;--------------------
 ;;; Example 2
 ;;;--------------------
 
-(DEFUN QUERY-CONTINUE (MESSAGE)
-  (CLEAR-INPUT *QUERY-IO*)
-  (FORMAT *QUERY-IO* "~A" MESSAGE)
-  (READ-LINE  *QUERY-IO* NIL NIL))
+(defun query-continue (message)
+  (clear-input *query-io*)
+  (format *query-io* "~A" message)
+  (read-line  *query-io* nil nil))
 
 
-(DEFUN BROWNING ()
-  (LET ((I 100000)
-        (C (RANDOM #X1000000))
-        (OX 250)
-        (OY 250)
-        (X (RANDOM 500))
-        (Y (RANDOM 500)))
-    (DO-WINDOW (:TITLE "Examples -- Browning" :TIMEOUT 0.01)
-      (SET-COLOR C)
-      (WHEN (< (+ (ABS (- OX X)) (ABS (- OY Y))) 400)
-        (DRAW-LINE OX OY X Y))
-      (SETF I (1- I)
-            C (MOD (+ C (* (AREF #(#X10000 #X100 #X1) (RANDOM 3))
-                           (RANDOM 10))) #X1000000)
-            OX X
-            OY Y
-            X (MOD (+ X (- (RANDOM 21) 10)) 500)
-            Y (MOD (+ Y (- (RANDOM 21) 10)) 500))
-      (WHEN (ZEROP I)
-        (QUERY-CONTINUE  "Terminé; tapez RET: ")
-        (RETURN-FROM-DO-WINDOW)))))
+(defun browning ()
+  (let ((i 100000)
+        (c (random #x1000000))
+        (ox 250)
+        (oy 250)
+        (x (random 500))
+        (y (random 500)))
+    (do-window (:title "Examples -- Browning" :timeout 0.01)
+      (set-color c)
+      (when (< (+ (abs (- ox x)) (abs (- oy y))) 400)
+        (draw-line ox oy x y))
+      (setf i (1- i)
+            c (mod (+ c (* (aref #(#x10000 #x100 #x1) (random 3))
+                           (random 10))) #x1000000)
+            ox x
+            oy y
+            x (mod (+ x (- (random 21) 10)) 500)
+            y (mod (+ y (- (random 21) 10)) 500))
+      (when (zerop i)
+        (query-continue  "Terminé; tapez RET: ")
+        (return-from-do-window)))))
 
-(PRINT '(BROWNING))
+(print '(browning))
 
 
 ;;;--------------------
@@ -120,28 +117,28 @@
 ;;;--------------------
 
 
-(DEFUN DRAW-FUNCTION (FUN MIN-X MAX-X MIN-Y MAX-Y)
-  (LET ((WIDTH  (WINDOW-WIDTH))
-        (HEIGHT (WINDOW-HEIGHT)))
-    (FLET ((WX (X) (* WIDTH  (/ (- X MIN-X) (- MAX-X MIN-X))))
-           (WY (Y) (* HEIGHT (/ (- Y MIN-Y) (- MAX-Y MIN-Y)))))
-      (SET-RGB-COLOR 255 255 255)
-      (DRAW-RECTANGLE 0 0 WIDTH HEIGHT T)
-      (SET-RGB-COLOR 0 0 50)
-      (DRAW-LINE 0 (WY 0) WIDTH (WY 0))
-      (DRAW-LINE (WX 0) 0 (WX 0) HEIGHT)
-      (SET-RGB-COLOR 0 0 0)
-      (LOOP
-         :FOR X :FROM MIN-X :TO MAX-X :BY (/ (- MAX-X MIN-X) WIDTH)
-         :DO (LET ((Y (IGNORE-ERRORS (FUNCALL FUN X))))
-               (WHEN Y (DRAW-POINT-AT (WX X) (WY Y)))))))) 
+(defun draw-function (fun min-x max-x min-y max-y)
+  (let ((width  (window-width))
+        (height (window-height)))
+    (flet ((wx (x) (* width  (/ (- x min-x) (- max-x min-x))))
+           (wy (y) (* height (/ (- y min-y) (- max-y min-y)))))
+      (set-rgb-color 255 255 255)
+      (draw-rectangle 0 0 width height t)
+      (set-rgb-color 0 0 50)
+      (draw-line 0 (wy 0) width (wy 0))
+      (draw-line (wx 0) 0 (wx 0) height)
+      (set-rgb-color 0 0 0)
+      (loop
+         :for x :from min-x :to max-x :by (/ (- max-x min-x) width)
+         :do (let ((y (ignore-errors (funcall fun x))))
+               (when y (draw-point-at (wx x) (wy y)))))))) 
        
 
 (defun test-draw-function ()
-  (DO-WINDOW (:TITLE "Courbes")
-    (DRAW-FUNCTION (FUNCTION SIN) (* -4 PI) (* 4 PI) -1.2 +1.2)
-    (QUERY-CONTINUE "Terminé; tapez RET : ")
-    (RETURN-FROM-DO-WINDOW)))
+  (do-window (:title "Courbes")
+    (draw-function (function sin) (* -4 pi) (* 4 pi) -1.2 +1.2)
+    (query-continue "Terminé; tapez RET : ")
+    (return-from-do-window)))
 
 (print '(test-draw-function))
 
@@ -157,7 +154,7 @@
      :for i :below 6
      :do (draw (/ 50 (expt (1+ i) 3/4))) (turn 45) (split (turn -70))))
 
-(PRINT '(ex-turtle-1))
+(print '(ex-turtle-1))
 
 
 (defun ex-turtle-2 ()
