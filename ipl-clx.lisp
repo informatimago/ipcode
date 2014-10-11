@@ -89,6 +89,8 @@ S'il n'existe pas, alors on le crée."
   (error "~A: comment obtenir la valeur d'une variable ~
                d'environnement POSIX ?" 'getenv))
 
+(defvar *default-display* (or (getenv "DISPLAY") ":0.0"))
+;; (setf *default-display* ":0.0")
 
 (defun parse-display-variable (s)
   "Analyse le nom du display X et
@@ -104,7 +106,7 @@ retourne le nom du serveur, et le numéro du display."
                       (x 0) (y 0) (width 512) (height 342) 
                       (title "IPL LISP") (wm-class '("lisp" "LISP")))
   "Ouvre une nouvelle fenêtre sur le display DISPLAY-NUMBER du serveur X HOST.
-Au lieu de spécifier HSOT e DISPLAY-NUMBER, on peut spécifier DISPLAY-NAME
+Au lieu de spécifier HOST et DISPLAY-NUMBER, on peut spécifier DISPLAY-NAME
 avec la syntaxe \"host:display-number[.screen-number]\".
 Si on ne spécifie ni l'un ni l'autre alors la variable d'environnement DISPLAY
 est utilisée, ou sinon \":0.0\".
@@ -112,7 +114,7 @@ Retourne une structure xenv.
 "
   (unless (and host display-number)
     (multiple-value-setq (host display-number)
-      (parse-display-variable (or display-name (getenv "DISPLAY") ":0.0"))))
+      (parse-display-variable (or display-name *default-display*))))
   (let* ((display  (xlib:open-display host :display display-number))
          (screen   (xlib:display-default-screen display))
          (black    (xlib:screen-black-pixel screen))
@@ -182,7 +184,6 @@ Retourne une structure xenv.
   (octets-to-string octets
                     :encoding *window-manager-encoding*
                     :start start :end end))
-
 
 
 (defun (setf wm-class) (wm-class &optional (*xenv* (default-xenv)))
