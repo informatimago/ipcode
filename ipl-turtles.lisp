@@ -40,11 +40,12 @@
   (:export "TURTLES" "MOVE-OFFSET" "DRAW-OFFSET" "ERASE-OFFSET"
            "MOVE" "DRAW" "ERASE" "TURN" "TURN/RADIANS"
            "CLEAR"  "SPLIT" "SPLIT*" "TPROMPT"
-           "REPEAT"))
+           "REPEAT"
+           "COPY-TURTLE" "TURTLE-ANGLE" "TURTLE-POSITION"))
 (in-package "IPL-TURTLES")
 
 
-(defstruct (turtle (:copier copy-turtle))
+(defstruct (turtle (:copier nil))
   (angle 0) ; angle in radians from Ox
   (position (point 0 0)))
 
