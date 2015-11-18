@@ -86,7 +86,4 @@
          ;; TODO: Add cannons. Get user input to shoot. Etc.
       :until (y-or-n-p "~%Done?"))))
 
-(in-package "IPL-USER")
-(print '(artilerie:main))
-
 ;;;; THE END ;;;;

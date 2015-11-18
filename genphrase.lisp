@@ -6,7 +6,7 @@
 ;;;;USER-INTERFACE:     NONE
 ;;;;DESCRIPTION
 ;;;;    
-;;;;    XXX
+;;;;    Generate phrases.
 ;;;;    
 ;;;;AUTHORS
 ;;;;    <PJB> Pascal Bourguignon <pjb@informatimago.com>
@@ -33,7 +33,9 @@
 ;;;;    Software Foundation, Inc., 59 Temple Place, Suite 330,
 ;;;;    Boston, MA 02111-1307 USA
 ;;;;**************************************************************************
-;;;;    
+(defpackage "GENERATE-PHRASES"
+  (:use "COMMON-LISP"))
+(in-package "GENERATE-PHRASES")
 
 
 (defparameter *français*
@@ -123,3 +125,5 @@ les listes résultantes"
 
 (defun 10-phrases ()
   (loop repeat 10 do (print (génère 'phrase))))
+
+;;;; THE END ;;;;

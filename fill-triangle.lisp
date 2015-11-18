@@ -1,5 +1,8 @@
 ;;;; -*- coding: utf-8 -*-
-(use-package "IPL-CLX")
+(defpackage "FILL-TRIANGLE"
+  (:use "COMMON-LISP"
+        "IPL-CLX"))
+(in-package "FILL-TRIANGLE")
 
 
 (defun solve-line-y (ax ay bx by)
@@ -125,9 +128,5 @@
                        (random (truncate (* 256 size)))
                        (random (truncate (* 256 size)))))
       (apply (function fill-triangle) triangle))))
-
-(print '(test/fill-triangle/1))
-(print '(test/fill-triangle/2))
-
 
 ;;;; THE END ;;;;

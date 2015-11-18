@@ -34,6 +34,11 @@
 ;;;;    Boston, MA 02111-1307 USA
 ;;;;**************************************************************************
 
+(defpackage "PENDU"
+  (:use "COMMON-LISP")
+  (:export "PENDU"))
+(in-package "PENDU")
+
 (defvar *fichier-de-mots* "/usr/share/dict/words"
   "Chemin vers un fichier qui contient des mots, un par ligne.")
 
@@ -328,3 +333,4 @@
                           (dessin-de-l-etat etat-joueur) mot)))))
 
 
+;;;; THE END ;;;;

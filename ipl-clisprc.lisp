@@ -37,147 +37,144 @@
 ;;;;    Boston, MA 02111-1307 USA
 ;;;;****************************************************************************
 
+(in-package "COMMON-LISP-USER")
+(defpackage "IPL"
+  (:use "COMMON-LISP")) ; Export à la fin.
+(in-package "IPL")
 
-(IN-PACKAGE "COMMON-LISP-USER")
-
-(DEFPACKAGE "IPL"
-  (:USE "COMMON-LISP")) ; Export à la fin.
-
-(IN-PACKAGE "IPL")
-
-(LET ((SYMLIST '()))
-  (DO-EXTERNAL-SYMBOLS (SYM "COMMON-LISP") (PUSH SYM SYMLIST))
-  (EXPORT SYMLIST #.(FIND-PACKAGE "IPL")))
+(let ((symlist '()))
+  (do-external-symbols (sym "COMMON-LISP") (push sym symlist))
+  (export symlist #.(find-package "IPL")))
 
 ;;; ----------------------------------------------------------------------
 ;;; -- logical hosts -- the Common-Lisp way to PATH --
 ;;; --------------------------------------------------
 
-(EVAL-WHEN (:COMPILE-TOPLEVEL :LOAD-TOPLEVEL :EXECUTE)
-  (DEFVAR *LOGICAL-HOSTS* '()))
-(EXPORT '*LOGICAL-HOSTS*)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defvar *logical-hosts* '()))
+(export '*logical-hosts*)
 
-(DEFUN DEF-LP-TRANS (HOST PATH &OPTIONAL (SUBPATH ""))
-  (PUSHNEW HOST *LOGICAL-HOSTS* :TEST (FUNCTION STRING-EQUAL))
+(defun def-lp-trans (host path &optional (subpath ""))
+  (pushnew host *logical-hosts* :test (function string-equal))
   ;; If the HOST is already defined we don't change it.
-  (UNLESS (HANDLER-CASE (LOGICAL-PATHNAME-TRANSLATIONS HOST) (ERROR () NIL))
-    (LET ((DIRECTORY (APPEND (PATHNAME-DIRECTORY PATH)
-                             (CDR (PATHNAME-DIRECTORY SUBPATH))
-                             '( :WILD-INFERIORS ))))
-      (SETF (LOGICAL-PATHNAME-TRANSLATIONS HOST)
-            (LIST
-             (LIST "**;*"     (MAKE-PATHNAME :DIRECTORY DIRECTORY
-                                             :NAME :WILD))
-             (LIST "**;*.*"   (MAKE-PATHNAME :DIRECTORY DIRECTORY
-                                             :NAME :WILD :TYPE :WILD))
-             (LIST "**;*.*.*" (MAKE-PATHNAME :DIRECTORY DIRECTORY
-                                             :NAME :WILD :TYPE :WILD
-                                             :VERSION :WILD)) )))))
+  (unless (handler-case (logical-pathname-translations host) (error () nil))
+    (let ((directory (append (pathname-directory path)
+                             (cdr (pathname-directory subpath))
+                             '( :wild-inferiors ))))
+      (setf (logical-pathname-translations host)
+            (list
+             (list "**;*"     (make-pathname :directory directory
+                                             :name :wild))
+             (list "**;*.*"   (make-pathname :directory directory
+                                             :name :wild :type :wild))
+             (list "**;*.*.*" (make-pathname :directory directory
+                                             :name :wild :type :wild
+                                             :version :wild)) )))))
 
-(DEFMACRO MP (PATHNAME &OPTIONAL
-                       (DIRECTORY NIL DIRECTORY-P)
-                       (NAME      NIL NAME-P)
-                       (TYPE      NIL TYPE-P)
-                       (VERSION   NIL VERSION-P))
-  `(MERGE-PATHNAMES
-    (MAKE-PATHNAME,@(WHEN DIRECTORY-P `(:DIRECTORY '(:RELATIVE ,@DIRECTORY)))
-                  ,@(WHEN NAME-P      `(:NAME      ,NAME))
-                  ,@(WHEN TYPE-P      `(:TYPE      ,TYPE))
-                  ,@(WHEN VERSION-P   `(:VERSION   ,VERSION))
-                  :DEFAULTS ,PATHNAME)
-    ,PATHNAME))
+(defmacro mp (pathname &optional
+                       (directory nil directory-p)
+                       (name      nil name-p)
+                       (type      nil type-p)
+                       (version   nil version-p))
+  `(merge-pathnames
+    (make-pathname,@(when directory-p `(:directory '(:relative ,@directory)))
+                  ,@(when name-p      `(:name      ,name))
+                  ,@(when type-p      `(:type      ,type))
+                  ,@(when version-p   `(:version   ,version))
+                  :defaults ,pathname)
+    ,pathname))
 
 
-(DEFPARAMETER +SHARE-LISP+ "/usr/local/share/lisp/")
-(DEF-LP-TRANS "SHARE-LISP" +SHARE-LISP+)
-(DEF-LP-TRANS "CMU-AI"     +SHARE-LISP+ "ai/")
-(DEF-LP-TRANS "CL-PDF"     +SHARE-LISP+ "cl-pdf/")
-(DEF-LP-TRANS "UFFI"       +SHARE-LISP+ "uffi/")
-(DEF-LP-TRANS "PACKAGES"   +SHARE-LISP+ "packages/")
-(DEF-LP-TRANS "CLOCC"      +SHARE-LISP+ "packages/net/sourceforge/clocc/clocc/")
-(DEF-LP-TRANS "CCLAN"      +SHARE-LISP+ "packages/net/sourceforge/cclan/")
-(DEF-LP-TRANS "DEFSYSTEM"  +SHARE-LISP+
+(defparameter +share-lisp+ "/usr/local/share/lisp/")
+(def-lp-trans "SHARE-LISP" +share-lisp+)
+(def-lp-trans "CMU-AI"     +share-lisp+ "ai/")
+(def-lp-trans "CL-PDF"     +share-lisp+ "cl-pdf/")
+(def-lp-trans "UFFI"       +share-lisp+ "uffi/")
+(def-lp-trans "PACKAGES"   +share-lisp+ "packages/")
+(def-lp-trans "CLOCC"      +share-lisp+ "packages/net/sourceforge/clocc/clocc/")
+(def-lp-trans "CCLAN"      +share-lisp+ "packages/net/sourceforge/cclan/")
+(def-lp-trans "DEFSYSTEM"  +share-lisp+
   ;; We must go thru a translation for defsystem-3.x isn't a valid logical name!
   "packages/net/sourceforge/clocc/clocc/src/defsystem-3.x/")
 
-(DEFPARAMETER +PJB-COMM+ (MP (USER-HOMEDIR-PATHNAME) ("src" "public" "common")))
-(DEFPARAMETER +PJB-LISP+ (MP (USER-HOMEDIR-PATHNAME) ("src" "lisp")))
+(defparameter +pjb-comm+ (mp (user-homedir-pathname) ("src" "public" "common")))
+(defparameter +pjb-lisp+ (mp (user-homedir-pathname) ("src" "lisp")))
 
-(DEF-LP-TRANS "HOME"     (USER-HOMEDIR-PATHNAME)   "")
-(DEF-LP-TRANS "LOADERS"  +PJB-COMM+        "cl-loaders/")
-(DEF-LP-TRANS "NORVIG"   +PJB-LISP+        "norvig/")
+(def-lp-trans "HOME"     (user-homedir-pathname)   "")
+(def-lp-trans "LOADERS"  +pjb-comm+        "cl-loaders/")
+(def-lp-trans "NORVIG"   +pjb-lisp+        "norvig/")
 
 
 ;;;----------------------------------------------------------------------
-#-SBCL (LOAD "PACKAGES:NET;SOURCEFORGE;CCLAN;ASDF;ASDF.LISP")
-#+SBCL (REQUIRE 'ASDF)
-#+SBCL (REQUIRE 'ASDF-INSTALL)
+#-sbcl (load "PACKAGES:NET;SOURCEFORGE;CCLAN;ASDF;ASDF.LISP")
+#+sbcl (require 'asdf)
+#+sbcl (require 'asdf-install)
 ;;;(LOAD "PACKAGES:NET;SOURCEFORGE;CCLAN;ASDF;ASDF-INSTALL.LISP")
 
-(DEFPARAMETER *ORIGINAL-ASDF-REGISTRY* ASDF:*CENTRAL-REGISTRY*)
+(defparameter *original-asdf-registry* asdf:*central-registry*)
 
-(DEFUN ASDF-RESCAN-PACKAGES ()
-  (FORMAT *TRACE-OUTPUT* "~&;; Scanning ASDF packages...~%")
-  (PROG1
-      (SORT 
-       (DELETE-DUPLICATES 
-        (MAPCAR
-         (LAMBDA (P) (MAKE-PATHNAME :NAME NIL :TYPE NIL :VERSION NIL :DEFAULTS P))
-         (DIRECTORY "PACKAGES:**;*.ASD")) 
-        :TEST (FUNCTION EQUAL))
-       (LAMBDA (A B) (IF (= (LENGTH A) (LENGTH B))
-                  (STRING< A B)
-                  (< (LENGTH A) (LENGTH B))))
-       :KEY (FUNCTION NAMESTRING))
-    (FORMAT *TRACE-OUTPUT* "~&;; Done.~%")))
+(defun asdf-rescan-packages ()
+  (format *trace-output* "~&;; Scanning ASDF packages...~%")
+  (prog1
+      (sort 
+       (delete-duplicates 
+        (mapcar
+         (lambda (p) (make-pathname :name nil :type nil :version nil :defaults p))
+         (directory "PACKAGES:**;*.ASD")) 
+        :test (function equal))
+       (lambda (a b) (if (= (length a) (length b))
+                  (string< a b)
+                  (< (length a) (length b))))
+       :key (function namestring))
+    (format *trace-output* "~&;; Done.~%")))
 
-(DEFUN UPDATE-ASDF-REGISTRY ()
-  (SETF ASDF:*CENTRAL-REGISTRY*
-        (NCONC (ASDF-RESCAN-PACKAGES)
+(defun update-asdf-registry ()
+  (setf asdf:*central-registry*
+        (nconc (asdf-rescan-packages)
                ;;(list CCLAN-GET::*CCLAN-ASDF-REGISTRY*)
-               *ORIGINAL-ASDF-REGISTRY*)))
+               *original-asdf-registry*)))
 
-(EXPORT 'UPDATE-ASDF-REGISTRY)
-(UPDATE-ASDF-REGISTRY)
+(export 'update-asdf-registry)
+(update-asdf-registry)
 
-(IN-PACKAGE "ASDF")
-(HANDLER-BIND ((WARNING (FUNCTION MUFFLE-WARNING)))
+(in-package "ASDF")
+(handler-bind ((warning (function muffle-warning)))
   ;; TODO: we should keep the error message in a string
   ;;       and check it's only the warnings.
-  (FLET ((OUTPUT-FILES (C)
-           (FLET ((IMPLEMENTATION-ID ()
-                    (FLET ((FIRST-WORD (TEXT)
-                             (LET ((POS (POSITION (CHARACTER " ") TEXT)))
-                               (REMOVE (CHARACTER ".")
-                                       (IF POS (SUBSEQ TEXT 0 POS) TEXT)))))
-                      (FORMAT NIL
+  (flet ((output-files (c)
+           (flet ((implementation-id ()
+                    (flet ((first-word (text)
+                             (let ((pos (position (character " ") text)))
+                               (remove (character ".")
+                                       (if pos (subseq text 0 pos) text)))))
+                      (format nil
                         "~A-~A-~A"
-                        (FIRST-WORD (LISP-IMPLEMENTATION-TYPE))
-                        (FIRST-WORD (LISP-IMPLEMENTATION-VERSION))
-                        (FIRST-WORD (MACHINE-TYPE))))))
-             (LET* ((OBJECT
-                      (COMPILE-FILE-PATHNAME (ASDF:COMPONENT-PATHNAME C)))
-                    (PATH
-                     (MERGE-PATHNAMES
-                      (MAKE-PATHNAME :DIRECTORY
-                                     (LIST :RELATIVE
-                                           (FORMAT NIL
+                        (first-word (lisp-implementation-type))
+                        (first-word (lisp-implementation-version))
+                        (first-word (machine-type))))))
+             (let* ((object
+                      (compile-file-pathname (asdf:component-pathname c)))
+                    (path
+                     (merge-pathnames
+                      (make-pathname :directory
+                                     (list :relative
+                                           (format nil
                                              "OBJ-~:@(~A~)"
-                                             (IMPLEMENTATION-ID)))
-                                     :NAME
-                                     (PATHNAME-NAME OBJECT)
-                                     :TYPE
-                                     (PATHNAME-TYPE OBJECT))
-                      OBJECT)))
-               (ENSURE-DIRECTORIES-EXIST PATH)
-               (LIST PATH)))))
-    (DEFMETHOD OUTPUT-FILES ((OPERATION COMPILE-OP) (C CL-SOURCE-FILE))
-      (OUTPUT-FILES C))
-    (DEFMETHOD OUTPUT-FILES
-        ((OPERATION LOAD-OP) (C CL-SOURCE-FILE))
-      (OUTPUT-FILES C))))
+                                             (implementation-id)))
+                                     :name
+                                     (pathname-name object)
+                                     :type
+                                     (pathname-type object))
+                      object)))
+               (ensure-directories-exist path)
+               (list path)))))
+    (defmethod output-files ((operation compile-op) (c cl-source-file))
+      (output-files c))
+    (defmethod output-files
+        ((operation load-op) (c cl-source-file))
+      (output-files c))))
 
-(IN-PACKAGE "IPL")
+(in-package "IPL")
 
 ;;;----------------------------------------------------------------------
 ;;; (WHEN *LOAD-VERBOSE*
@@ -186,29 +183,29 @@
 
 
 
-(UNLESS (BLOCK :DONE
-          (DOLIST (FILE (LIST (MP +SHARE-LISP+ ("common-lisp") "package")
-                              (MP +SHARE-LISP+ ("common-lisp") "package" "lisp")
-                              (MP +PJB-COMM+ ("common-lisp") "package")
-                              (MP +PJB-COMM+ ("common-lisp") "package" "lisp")))
-            (HANDLER-CASE (PROGN (LOAD FILE) (RETURN-FROM :DONE T)) (ERROR ())))
-          NIL)
-  (ERROR "Cannot find COM.INFORMATIMAGO.COMMON-LISP.PACKAGE"))
+(unless (block :done
+          (dolist (file (list (mp +share-lisp+ ("common-lisp") "package")
+                              (mp +share-lisp+ ("common-lisp") "package" "lisp")
+                              (mp +pjb-comm+ ("common-lisp") "package")
+                              (mp +pjb-comm+ ("common-lisp") "package" "lisp")))
+            (handler-case (progn (load file) (return-from :done t)) (error ())))
+          nil)
+  (error "Cannot find COM.INFORMATIMAGO.COMMON-LISP.PACKAGE"))
 
-(PUSH (FUNCTION PACKAGE:PACKAGE-SYSTEM-DEFINITION)
-      ASDF:*SYSTEM-DEFINITION-SEARCH-FUNCTIONS*)
+(push (function package:package-system-definition)
+      asdf:*system-definition-search-functions*)
 
-(IMPORT '(COM.INFORMATIMAGO.COMMON-LISP.PACKAGE:DEFINE-PACKAGE
-          COM.INFORMATIMAGO.COMMON-LISP.PACKAGE:LIST-ALL-SYMBOLS
-          COM.INFORMATIMAGO.COMMON-LISP.PACKAGE:LIST-EXTERNAL-SYMBOLS))
-(EXPORT '(COM.INFORMATIMAGO.COMMON-LISP.PACKAGE:DEFINE-PACKAGE
-          COM.INFORMATIMAGO.COMMON-LISP.PACKAGE:LIST-ALL-SYMBOLS
-          COM.INFORMATIMAGO.COMMON-LISP.PACKAGE:LIST-EXTERNAL-SYMBOLS))
+(import '(com.informatimago.common-lisp.package:define-package
+          com.informatimago.common-lisp.package:list-all-symbols
+          com.informatimago.common-lisp.package:list-external-symbols))
+(export '(com.informatimago.common-lisp.package:define-package
+          com.informatimago.common-lisp.package:list-all-symbols
+          com.informatimago.common-lisp.package:list-external-symbols))
 
-(WHEN (FBOUNDP 'COMMON-LISP-USER::POST-PROCESS-LOGICAL-PATHNAME-TRANSLATIONS)
-  (MAP NIL
-    (FUNCTION COMMON-LISP-USER::POST-PROCESS-LOGICAL-PATHNAME-TRANSLATIONS)
-    *LOGICAL-HOSTS*))
+(when (fboundp 'common-lisp-user::post-process-logical-pathname-translations)
+  (map nil
+    (function common-lisp-user::post-process-logical-pathname-translations)
+    *logical-hosts*))
   
 
 ;;; (setf COM.INFORMATIMAGO.COMMON-LISP.PACKAGE:*package-verbose* t)
@@ -218,108 +215,108 @@
 ;;; -----------------------
 
 
-(DEFUN SHOW (&REST ARGS) (FORMAT T "~&~{;; --> ~S~%~}" ARGS))
-(EXPORT 'SHOW)
+(defun show (&rest args) (format t "~&~{;; --> ~S~%~}" args))
+(export 'show)
 
 
-(LET ((ALTERNATE (FIND-PACKAGE "COMMON-LISP-USER")))
-  (DEFUN PSWITCH (&OPTIONAL PACKAGE)
-    (WHEN PACKAGE (SETF ALTERNATE (FIND-PACKAGE PACKAGE)))
-    (UNLESS (FBOUNDP (INTERN "PSWITCH" ALTERNATE))
-      (IMPORT '(PSWITCH)  ALTERNATE))
-    (SETF COMMON-LISP:*PACKAGE*  (IF (EQ ALTERNATE COMMON-LISP:*PACKAGE*)
-                       (FIND-PACKAGE "COMMON-LISP-USER")
-                       ALTERNATE))))
-(EXPORT 'PSWITCH)
+(let ((alternate (find-package "COMMON-LISP-USER")))
+  (defun pswitch (&optional package)
+    (when package (setf alternate (find-package package)))
+    (unless (fboundp (intern "PSWITCH" alternate))
+      (import '(pswitch)  alternate))
+    (setf common-lisp:*package*  (if (eq alternate common-lisp:*package*)
+                       (find-package "COMMON-LISP-USER")
+                       alternate))))
+(export 'pswitch)
 
 
-(PACKAGE:LOAD-PACKAGE "COM.INFORMATIMAGO.COMMON-LISP.BROWSER")
-(USE-PACKAGE          "COM.INFORMATIMAGO.COMMON-LISP.BROWSER")
-(EXPORT '(BROWSE CD PWD PUSHD POPD LS CAT LESS MORE))
+(package:load-package "COM.INFORMATIMAGO.COMMON-LISP.BROWSER")
+(use-package          "COM.INFORMATIMAGO.COMMON-LISP.BROWSER")
+(export '(browse cd pwd pushd popd ls cat less more))
 
 
-(DEFMETHOD DOCUMENTATION ((PACKAGE T) (DOC-TYPE (EQL 'EXPORTS)))
-  (FORMAT T "~:{----------------------------------------~%~A~2%~A~2%~}"
-          (MAPCAR (LAMBDA (SYM) (LIST SYM (DOCUMENTATION SYM 'FUNCTION)))
-                  (DELETE-IF (LAMBDA (SYM) (NULL (DOCUMENTATION SYM 'FUNCTION)))
-                             (LIST-EXTERNAL-SYMBOLS PACKAGE))))
-  (FORMAT T "Undocumented: ~{~A~^ ~}~%"
-          (DELETE-IF (LAMBDA (SYM)  (DOCUMENTATION SYM 'FUNCTION))
-                     (LIST-EXTERNAL-SYMBOLS PACKAGE))))
+(defmethod documentation ((package t) (doc-type (eql 'exports)))
+  (format t "~:{----------------------------------------~%~A~2%~A~2%~}"
+          (mapcar (lambda (sym) (list sym (documentation sym 'function)))
+                  (delete-if (lambda (sym) (null (documentation sym 'function)))
+                             (list-external-symbols package))))
+  (format t "Undocumented: ~{~A~^ ~}~%"
+          (delete-if (lambda (sym)  (documentation sym 'function))
+                     (list-external-symbols package))))
 
 
-(DEFUN DIFF-PACKAGE (P1 P2)
-  (LET ((*PRINT-READABLY* T))
-  (FORMAT T "~2%Symbols exported from ~A not exported from ~A:~%~{  ~S~%~}~%"
-          P1 P2
-          (SET-DIFFERENCE (LIST-EXTERNAL-SYMBOLS P1) (LIST-EXTERNAL-SYMBOLS P2)
-                          :TEST (FUNCTION EQ)))))
-(EXPORT 'DIFF-PACKAGE)  
+(defun diff-package (p1 p2)
+  (let ((*print-readably* t))
+    (format t "~2%Symbols exported from ~A not exported from ~A:~%~{  ~S~%~}~%"
+            p1 p2
+            (set-difference (list-external-symbols p1) (list-external-symbols p2)
+                            :test (function eq)))))
+(export 'diff-package)  
 
 
-(DEFUN LSPACK (&REST ARGUMENTS)
-  (LET ((PACKAGE NIL) (EXPORTS (MEMBER :EXPORTS ARGUMENTS)))
-    (WHEN (CAR ARGUMENTS) (SETF PACKAGE (CAR ARGUMENTS)))
-    (FLET
-      ((LPAC (TITLE PLIST)
-             (WHEN PLIST
-               (SETF PLIST (MAPCAR
-                            (LAMBDA (NAME) (IF (STRING= "" NAME) "<empty>" NAME))
-                            (SORT (MAPCAR (LAMBDA (ITEM)
-                                            (ETYPECASE ITEM
-                                              (STRING  ITEM)
-                                              (SYMBOL  (STRING ITEM))
-                                              (PACKAGE (PACKAGE-NAME ITEM))))
-                                          PLIST)
-                                  (FUNCTION STRING<))))
-               (LET ((OUT (FORMAT NIL "~{~A ~}" PLIST)))
-                 (IF (< (LENGTH OUT) 60)
-                   (FORMAT T "   ~14A ~A~%" TITLE OUT)
-                   (FORMAT T "   ~14A~{ ~<~%                  ~1:;~A~>~^~}~%"
-                           TITLE PLIST))))))
-      (LET* ((PACKLIST
-              (IF PACKAGE
-                (LIST PACKAGE)
-                (SORT (COPY-LIST (LIST-ALL-PACKAGES))
-                      (FUNCTION STRING<) :KEY (FUNCTION PACKAGE-NAME))))
-             (NAME-WIDTH
-              (LOOP FOR P IN PACKLIST
-                    MAXIMIZE (LENGTH (PACKAGE-NAME P))))
-             (NUMB-WIDTH
-              (LOOP FOR P IN PACKLIST
-                    MAXIMIZE (TRUNCATE
-                              (1+ (LOG (MAX (LENGTH (LIST-EXTERNAL-SYMBOLS P))
-                                            (LENGTH (LIST-ALL-SYMBOLS P)) 3)
+(defun lspack (&rest arguments)
+  (let ((package nil) (exports (member :exports arguments)))
+    (when (car arguments) (setf package (car arguments)))
+    (flet
+      ((lpac (title plist)
+             (when plist
+               (setf plist (mapcar
+                            (lambda (name) (if (string= "" name) "<empty>" name))
+                            (sort (mapcar (lambda (item)
+                                            (etypecase item
+                                              (string  item)
+                                              (symbol  (string item))
+                                              (package (package-name item))))
+                                          plist)
+                                  (function string<))))
+               (let ((out (format nil "~{~A ~}" plist)))
+                 (if (< (length out) 60)
+                   (format t "   ~14A ~A~%" title out)
+                   (format t "   ~14A~{ ~<~%                  ~1:;~A~>~^~}~%"
+                           title plist))))))
+      (let* ((packlist
+              (if package
+                (list package)
+                (sort (copy-list (list-all-packages))
+                      (function string<) :key (function package-name))))
+             (name-width
+              (loop for p in packlist
+                    maximize (length (package-name p))))
+             (numb-width
+              (loop for p in packlist
+                    maximize (truncate
+                              (1+ (log (max (length (list-external-symbols p))
+                                            (length (list-all-symbols p)) 3)
                                        10))))))
-        (DOLIST (PACKAGE PACKLIST)
-          (FORMAT T "~%~A~%   ~14A ~VD exported, ~VD total.~%"
-                  (PACKAGE-NAME PACKAGE)
+        (dolist (package packlist)
+          (format t "~%~A~%   ~14A ~VD exported, ~VD total.~%"
+                  (package-name package)
                   "Symbols:"
-                  NUMB-WIDTH (LENGTH (LIST-EXTERNAL-SYMBOLS PACKAGE))
-                  NUMB-WIDTH (LENGTH (LIST-ALL-SYMBOLS PACKAGE)))
-          (LPAC "Nicknames:" (PACKAGE-NICKNAMES PACKAGE))
-          (LPAC "Uses:"      (PACKAGE-USE-LIST PACKAGE))
-          (LPAC "Used by:"   (PACKAGE-USED-BY-LIST PACKAGE))
-          (WHEN EXPORTS
-            (LPAC "Exported:" (LIST-EXTERNAL-SYMBOLS PACKAGE))))
-        (VALUES)))))
+                  numb-width (length (list-external-symbols package))
+                  numb-width (length (list-all-symbols package)))
+          (lpac "Nicknames:" (package-nicknames package))
+          (lpac "Uses:"      (package-use-list package))
+          (lpac "Used by:"   (package-used-by-list package))
+          (when exports
+            (lpac "Exported:" (list-external-symbols package))))
+        (values)))))
 
-(EXPORT 'LSPACK)
+(export 'lspack)
 
 
-(DEFUN LSCHAR (&KEY (START 0) (END #X11000) NAME)
-  (IF NAME
-      (LOOP FOR CODE FROM START BELOW END
-         WHEN
-           #+CLISP (REGEXP:MATCH NAME (CHAR-NAME (CODE-CHAR CODE)))
-           #-CLISP (SEARCH NAME (CHAR-NAME (CODE-CHAR CODE))  
-                           :TEST (FUNCTION EQUALP))
-         DO (FORMAT T "#x~5,'0X  ~:*~6D  ~C  ~S~%"
-                    CODE (CODE-CHAR CODE) (CHAR-NAME (CODE-CHAR CODE))))
-      (LOOP FOR CODE FROM START BELOW END
-         DO (FORMAT T "#x~5,'0X  ~:*~6D  ~C  ~S~%"
-                    CODE (CODE-CHAR CODE) (CHAR-NAME (CODE-CHAR CODE))))))
-(EXPORT 'LSCHAR)
+(defun lschar (&key (start 0) (end #x11000) name)
+  (if name
+      (loop for code from start below end
+         when
+           #+clisp (regexp:match name (char-name (code-char code)))
+           #-clisp (search name (char-name (code-char code))  
+                           :test (function equalp))
+         do (format t "#x~5,'0X  ~:*~6D  ~C  ~S~%"
+                    code (code-char code) (char-name (code-char code))))
+      (loop for code from start below end
+         do (format t "#x~5,'0X  ~:*~6D  ~C  ~S~%"
+                    code (code-char code) (char-name (code-char code))))))
+(export 'lschar)
 
 
 ;;;----------------------------------------------------------------------
@@ -329,33 +326,33 @@
 ;;; editor-name is redefined in config.lisp to be:
 ;;; (defun editor-name () (or (getenv "EDITOR") *editor*))
 
-(DEFUN GET-FIRST-WORD (STRING)
+(defun get-first-word (string)
   "
 RETURN:     The first word of the string, or the empty string.
 "
-  (DO ((I 0)
-       (J 0)
-       (FOUND NIL)
-       (DONE NIL))
-      (DONE (IF FOUND (SUBSEQ STRING I  J) ""))
-    (IF  (<= (LENGTH STRING) I)
-      (SETF DONE T FOUND NIL)
-      (IF (<= J I)
-        (IF (ALPHA-CHAR-P (CHAR STRING I))
-          (SETF J (1+ I))
-          (INCF I))
-        (IF (<= (LENGTH STRING) J)
-          (SETF DONE T FOUND T)
-          (IF (ALPHA-CHAR-P (CHAR STRING J))
-            (INCF J)
-            (SETF DONE T FOUND T)))))))
+  (do ((i 0)
+       (j 0)
+       (found nil)
+       (done nil))
+      (done (if found (subseq string i  j) ""))
+    (if  (<= (length string) i)
+      (setf done t found nil)
+      (if (<= j i)
+        (if (alpha-char-p (char string i))
+          (setf j (1+ i))
+          (incf i))
+        (if (<= (length string) j)
+          (setf done t found t)
+          (if (alpha-char-p (char string j))
+            (incf j)
+            (setf done t found t)))))))
 
 
-(DEFVAR *EDITOR* (IF (FBOUNDP 'ED)
-                   (FUNCTION ED)
-                   (LAMBDA (&REST ARGS)
-                     (DECLARE (IGNORE ARGS))
-                     (ERROR "This implementation doesn't have an ED")))
+(defvar *editor* (if (fboundp 'ed)
+                   (function ed)
+                   (lambda (&rest args)
+                     (declare (ignore args))
+                     (error "This implementation doesn't have an ED")))
   "The editor function provided by the implementation.")
 
 
@@ -363,66 +360,66 @@ RETURN:     The first word of the string, or the empty string.
 ;;;   "The path to the file where edits of functions are appended.")
 
 
-(DEFUN EDIT (&OPTIONAL ITEM &KEY (WAIT T WAIT-P))
+(defun edit (&optional item &key (wait t wait-p))
   "
 DO:         Create FILE if it doesn't exist, and
             Calls  with the FILE argument.
 "
-  (SETF ITEM (OR ITEM
-                 (MAKE-PATHNAME :DIRECTORY '(:ABSOLUTE "tmp")
-                                :NAME "scratch" :TYPE "lisp")))
-  (FLET ((DOEDIT (ITEM)
-          (COND
-           ((NULL *EDITOR*) (WARN "There's no editor (null *editor*)"))
-           ((EQ *EDITOR* (FUNCTION ED)) (FUNCALL *EDITOR* ITEM))
-           (WAIT-P (HANDLER-CASE (FUNCALL *EDITOR* ITEM :WAIT WAIT)
-                     ((OR SIMPLE-KEYWORD-ERROR SIMPLE-PROGRAM-ERROR
-                          SIMPLE-SOURCE-PROGRAM-ERROR)
-                      () (FUNCALL *EDITOR* ITEM))))
-           (T (FUNCALL *EDITOR* ITEM)))))
-    (COND
-     ((OR (FUNCTIONP ITEM)
-          (AND (OR (PATHNAMEP ITEM) (STRINGP ITEM)) (PROBE-FILE ITEM)))
-      (DOEDIT ITEM))
-     ((SYMBOLP ITEM)
-      (IF (SYMBOL-PACKAGE ITEM)
-        (LET ((*PACKAGE* (SYMBOL-PACKAGE ITEM)))
-          (DOEDIT ITEM))
-        (DOEDIT ITEM)))
-     (T (LOOP
-         (FORMAT *QUERY-IO*
-           "File ~S does not exist. Should I create it? " ITEM)
-         (FINISH-OUTPUT *QUERY-IO*)
-         (LET ((LINE (STRING-UPCASE ; small optimization to avoid STRING-EQUAL.
-                      (GET-FIRST-WORD (LET ((*READ-EVAL* NIL))
-                                        (READ-LINE *QUERY-IO* NIL :NO))))))
-           (COND
-            ((MEMBER LINE '("YES" "Y" "JA" "J" "SI" "S" "OUI" "O" "T")
-                     :TEST (FUNCTION STRING=))
-             (CLOSE (OPEN ITEM :DIRECTION :OUTPUT))
-             (RETURN-FROM EDIT (DOEDIT  (TRUENAME ITEM))))
-            ((MEMBER LINE '("NO" "N" "NON" "NEIN" "NIL")
-                     :TEST (FUNCTION STRING=))
-             (FORMAT *ERROR-OUTPUT* "EDIT OF ~S CANCELED." ITEM)
-             (FINISH-OUTPUT *ERROR-OUTPUT*)
-             (RETURN-FROM EDIT NIL)))))))))
+  (setf item (or item
+                 (make-pathname :directory '(:absolute "tmp")
+                                :name "scratch" :type "lisp")))
+  (flet ((doedit (item)
+          (cond
+           ((null *editor*) (warn "There's no editor (null *editor*)"))
+           ((eq *editor* (function ed)) (funcall *editor* item))
+           (wait-p (handler-case (funcall *editor* item :wait wait)
+                     ((or simple-keyword-error simple-program-error
+                          simple-source-program-error)
+                      () (funcall *editor* item))))
+           (t (funcall *editor* item)))))
+    (cond
+     ((or (functionp item)
+          (and (or (pathnamep item) (stringp item)) (probe-file item)))
+      (doedit item))
+     ((symbolp item)
+      (if (symbol-package item)
+        (let ((*package* (symbol-package item)))
+          (doedit item))
+        (doedit item)))
+     (t (loop
+         (format *query-io*
+           "File ~S does not exist. Should I create it? " item)
+         (finish-output *query-io*)
+         (let ((line (string-upcase ; small optimization to avoid STRING-EQUAL.
+                      (get-first-word (let ((*read-eval* nil))
+                                        (read-line *query-io* nil :no))))))
+           (cond
+            ((member line '("YES" "Y" "JA" "J" "SI" "S" "OUI" "O" "T")
+                     :test (function string=))
+             (close (open item :direction :output))
+             (return-from edit (doedit  (truename item))))
+            ((member line '("NO" "N" "NON" "NEIN" "NIL")
+                     :test (function string=))
+             (format *error-output* "EDIT OF ~S CANCELED." item)
+             (finish-output *error-output*)
+             (return-from edit nil)))))))))
 
-(EXPORT '(EDIT *EDITOR*))
+(export '(edit *editor*))
 
 
-(DEFUN PRINT-BUG-REPORT-INFO ()
-  (FORMAT T "~2%~{~28A ~S~%~}~2%"
-          (LIST "LISP-IMPLEMENTATION-TYPE"    (LISP-IMPLEMENTATION-TYPE)
-                "LISP-IMPLEMENTATION-VERSION" (LISP-IMPLEMENTATION-VERSION)
-                "SOFTWARE-TYPE"               (SOFTWARE-TYPE)
-                "SOFTWARE-VERSION"            (SOFTWARE-VERSION)
-                "MACHINE-INSTANCE"            (MACHINE-INSTANCE)
-                "MACHINE-TYPE"                (MACHINE-TYPE)
-                "MACHINE-VERSION"             (MACHINE-VERSION)
-                "*FEATURES*"                  *FEATURES*))
-  (VALUES))
+(defun print-bug-report-info ()
+  (format t "~2%~{~28A ~S~%~}~2%"
+          (list "LISP-IMPLEMENTATION-TYPE"    (lisp-implementation-type)
+                "LISP-IMPLEMENTATION-VERSION" (lisp-implementation-version)
+                "SOFTWARE-TYPE"               (software-type)
+                "SOFTWARE-VERSION"            (software-version)
+                "MACHINE-INSTANCE"            (machine-instance)
+                "MACHINE-TYPE"                (machine-type)
+                "MACHINE-VERSION"             (machine-version)
+                "*FEATURES*"                  *features*))
+  (values))
 
-(EXPORT 'PRINT-BUG-REPORT-INFO)
+(export 'print-bug-report-info)
 
 
 
@@ -430,13 +427,13 @@ DO:         Create FILE if it doesn't exist, and
 ;;; Initialisations spécicique à clisp
 ;;;---------------------------------------------------------------------
 
-(LOAD "ipl-clx")
-(LOAD "ipl-turtles")
+(load "ipl-clx")
+(load "ipl-turtles")
 
-(DEFPACKAGE "IPL-USER"
-  (:USE "IPL" "IPL-CLX" "IPL-TURTLES"))
+(defpackage "IPL-USER"
+  (:use "IPL" "IPL-CLX" "IPL-TURTLES"))
 
-(IN-PACKAGE "IPL-USER")
+(in-package "IPL-USER")
 
 ;;; /usr/local/bin/clisp -ansi -q -K full -m 32M -I -Efile ISO-8859-15 -Epathname ISO-8859-15 -Eterminal UTF-8 -Emisc UTF-8 -Eforeign  ISO-8859-15 -L french
 
@@ -444,17 +441,17 @@ DO:         Create FILE if it doesn't exist, and
 ;;; Setting environment -- clisp part --
 ;;; ------------------------------------
 
-(DEFUN POST-PROCESS-LOGICAL-PATHNAME-TRANSLATIONS (HOST)
-  (FLET ((PSTRING (X) (IF (PATHNAMEP X) (NAMESTRING X) (STRING X))))
-    (SETF (LOGICAL-PATHNAME-TRANSLATIONS HOST)
-          (SORT (REMOVE-IF
-                 (LAMBDA (P) (LET ((P (PSTRING P)))
-                          (AND (< 5 (LENGTH P))
-                               (STRING= "*.*.*" P :START2 (- (LENGTH P) 5)))))
-                 (LOGICAL-PATHNAME-TRANSLATIONS HOST)
-                 :KEY (FUNCTION FIRST))
-                (LAMBDA (A B) (> (LENGTH (PSTRING (FIRST A)))
-                            (LENGTH (PSTRING (FIRST B)))))))))
+(defun post-process-logical-pathname-translations (host)
+  (flet ((pstring (x) (if (pathnamep x) (namestring x) (string x))))
+    (setf (logical-pathname-translations host)
+          (sort (remove-if
+                 (lambda (p) (let ((p (pstring p)))
+                          (and (< 5 (length p))
+                               (string= "*.*.*" p :start2 (- (length p) 5)))))
+                 (logical-pathname-translations host)
+                 :key (function first))
+                (lambda (a b) (> (length (pstring (first a)))
+                            (length (pstring (first b)))))))))
 
 ;;;----------------------------------------------------------------------
 ;;; Setting environment -- COMMON-LISP part --
@@ -467,24 +464,24 @@ DO:         Create FILE if it doesn't exist, and
 ;;;----------------------------------------------------------------------
 ;;; Setting environment -- CLISP specific --
 ;;; ----------------------------------------
-(SETF *LOAD-VERBOSE* NIL)
+(setf *load-verbose* nil)
 
-(SETF CUSTOM:*LOAD-PATHS*     '(#P"")
-      CUSTOM:*INSPECT-LENGTH* 80
-      CUSTOM:*EDITOR*         "/usr/local/emacs-multitty/bin/emacsclient"
-      CUSTOM:*BROWSER*        NIL #+(OR):MOZILLA-REMOTE
-      CUSTOM:*CLHS-ROOT-DEFAULT*
+(setf custom:*load-paths*     '(#p"")
+      custom:*inspect-length* 80
+      custom:*editor*         "/usr/local/emacs-multitty/bin/emacsclient"
+      custom:*browser*        nil #+(or):mozilla-remote
+      custom:*clhs-root-default*
       "http://thalassa.informatimago.com/local/lisp/HyperSpec/"
-      CUSTOM:*CURRENT-LANGUAGE*
-      (CONS 'I18N:FRANÇAIS "/usr/local/languages/clisp/share/locale/"))
+      custom:*current-language*
+      (cons 'i18n:français "/usr/local/languages/clisp/share/locale/"))
 
-(SETF *EDITOR* 
-      (LAMBDA (ARG &KEY (WAIT T))
-        (IF (OR (FUNCTIONP ARG) (SYMBOLP ARG))
-          (ED ARG)
-          (EXT:SHELL (FORMAT NIL
+(setf *editor* 
+      (lambda (arg &key (wait t))
+        (if (or (functionp arg) (symbolp arg))
+          (ed arg)
+          (ext:shell (format nil
                        "/usr/local/emacs-multitty/bin/emacsclient ~
-                       ~:[-n~;~] ~A" WAIT ARG)))))
+                       ~:[-n~;~] ~A" wait arg)))))
 
 
 ;;; We'll use clocc xlib\clx\clue
@@ -493,60 +490,58 @@ DO:         Create FILE if it doesn't exist, and
 ;;;----------------------------------------------------------------------
 ;;; Awfull trick for com.informatimago.clisp.script:is-running:
 
-(DEFUN EXECUTABLE-READER (A B C) (SYS::UNIX-EXECUTABLE-READER A B C))
-(SET-DISPATCH-MACRO-CHARACTER #\# #\! (FUNCTION EXECUTABLE-READER))
+(defun executable-reader (a b c) (sys::unix-executable-reader a b c))
+(set-dispatch-macro-character #\# #\! (function executable-reader))
 
-(DEFUN QUIT () (EXT:QUIT))
-(EXPORT 'QUIT)
+(defun quit () (ext:quit))
+(export 'quit)
 
-(PUSH (FUNCTION EXT:CD)
-      COM.INFORMATIMAGO.COMMON-LISP.BROWSER:*CHANGE-DIRECTORY-HOOK*)
-(CD (EXT:CD))     
-
-
-
-(DEFUN SH (COMMAND)
-  (LET ((ARGS (DELETE "" (SPLIT-STRING COMMAND " "))))
-    (WITH-OPEN-STREAM (IN (EXT:RUN-PROGRAM (FIRST ARGS)
-                            :ARGUMENTS (CDR ARGS) :OUTPUT :STREAM))
-      (LOOP FOR LINE = (READ-LINE IN NIL NIL)
-            WHILE LINE DO (PRINC LINE) (TERPRI)))));;SH
-
-#+(AND UNIX MACOS)
- (SETF CUSTOM:*DEFAULT-FILE-ENCODING* CHARSET:ISO-8859-15
-       #+FFI SYSTEM::FOREIGN-ENCODING #+FFI CHARSET:ISO-8859-15
-       CUSTOM:*MISC-ENCODING*         CHARSET:UTF-8 ; best same as terminal
-       CUSTOM:*TERMINAL-ENCODING*     CHARSET:UTF-8 
-       CUSTOM:*PATHNAME-ENCODING*     CHARSET:UTF-8)
+(push (function ext:cd)
+      com.informatimago.common-lisp.browser:*change-directory-hook*)
+(cd (ext:cd))     
 
 
-(DEFMACRO DEFINE-ENCODING-MACRO (NAME SYMBOL-MACRO)
-  `(DEFMACRO ,NAME (ENCODING &BODY BODY)
-    (WITH-GENSYMS (SAVED-ENCODING)
-      `(LET ((,SAVED-ENCODING ,',SYMBOL-MACRO))
-         (UNWIND-PROTECT (PROGN (SETF ,',SYMBOL-MACRO ,ENCODING)
-                                ,@BODY)
-           (SETF ,',SYMBOL-MACRO  ,SAVED-ENCODING))))))
 
-(DEFINE-ENCODING-MACRO WITH-FILE-ENCODING     CUSTOM:*DEFAULT-FILE-ENCODING*)
-(DEFINE-ENCODING-MACRO WITH-PATHNAME-ENCODING CUSTOM:*PATHNAME-ENCODING*)
-(DEFINE-ENCODING-MACRO WITH-TERMINAL-ENCODING CUSTOM:*TERMINAL-ENCODING*)
-(DEFINE-ENCODING-MACRO WITH-MISC-ENCODING     CUSTOM:*MISC-ENCODING*)
-#+FFI (DEFINE-ENCODING-MACRO WITH-FOREIGN-ENCODING  SYSTEM::*FOREIGN-ENCODING*)
+(defun sh (command)
+  (let ((args (delete "" (split-string command " "))))
+    (with-open-stream (in (ext:run-program (first args)
+                            :arguments (cdr args) :output :stream))
+      (loop for line = (read-line in nil nil)
+            while line do (princ line) (terpri)))));;SH
 
-(DEFUN LSENCOD ()
-  (FORMAT T "~%~{~32A ~A~%~}~%"
-          (LIST
-           'CUSTOM:*DEFAULT-FILE-ENCODING* CUSTOM:*DEFAULT-FILE-ENCODING*
-           #+FFI 'CUSTOM:*FOREIGN-ENCODING* #+FFI CUSTOM:*FOREIGN-ENCODING*
-           'CUSTOM:*MISC-ENCODING*         CUSTOM:*MISC-ENCODING*
-           'CUSTOM:*PATHNAME-ENCODING*     CUSTOM:*PATHNAME-ENCODING*
-           'CUSTOM:*TERMINAL-ENCODING*     CUSTOM:*TERMINAL-ENCODING*
-           'SYSTEM::*HTTP-ENCODING*        SYSTEM::*HTTP-ENCODING*))
-  (VALUES))
-(EXPORT 'LSENCOD)
+#+(and unix macos)
+ (setf custom:*default-file-encoding* charset:iso-8859-15
+       #+ffi system::foreign-encoding #+ffi charset:iso-8859-15
+       custom:*misc-encoding*         charset:utf-8 ; best same as terminal
+       custom:*terminal-encoding*     charset:utf-8 
+       custom:*pathname-encoding*     charset:utf-8)
 
 
-;;; The End ;;;
+(defmacro define-encoding-macro (name symbol-macro)
+  `(defmacro ,name (encoding &body body)
+    (with-gensyms (saved-encoding)
+      `(let ((,saved-encoding ,',symbol-macro))
+         (unwind-protect (progn (setf ,',symbol-macro ,encoding)
+                                ,@body)
+           (setf ,',symbol-macro  ,saved-encoding))))))
+
+(define-encoding-macro with-file-encoding     custom:*default-file-encoding*)
+(define-encoding-macro with-pathname-encoding custom:*pathname-encoding*)
+(define-encoding-macro with-terminal-encoding custom:*terminal-encoding*)
+(define-encoding-macro with-misc-encoding     custom:*misc-encoding*)
+#+ffi (define-encoding-macro with-foreign-encoding  system::*foreign-encoding*)
+
+(defun lsencod ()
+  (format t "~%~{~32A ~A~%~}~%"
+          (list
+           'custom:*default-file-encoding* custom:*default-file-encoding*
+           #+ffi 'custom:*foreign-encoding* #+ffi custom:*foreign-encoding*
+           'custom:*misc-encoding*         custom:*misc-encoding*
+           'custom:*pathname-encoding*     custom:*pathname-encoding*
+           'custom:*terminal-encoding*     custom:*terminal-encoding*
+           'system::*http-encoding*        system::*http-encoding*))
+  (values))
+(export 'lsencod)
 
 
+;;;; The End ;;;;

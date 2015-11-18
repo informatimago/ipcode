@@ -194,5 +194,5 @@ and erases along that path."
   `(loop :repeat ,count :do ,@body))
 
 
-;;; The End ;;;
+;;;; THE END ;;;;
 

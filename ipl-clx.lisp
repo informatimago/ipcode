@@ -35,7 +35,6 @@
 ;;;;    Software Foundation, Inc., 59 Temple Place, Suite 330,
 ;;;;    Boston, MA 02111-1307 USA
 ;;;;**************************************************************************
-(in-package "IPL")
 (defpackage "IPL-CLX"
   (:use "IPL" "BABEL")
   (:export "X" "Y" "MAKE-POINT" "COPY-POINT" "RETURN-FROM-DO-WINDOW"

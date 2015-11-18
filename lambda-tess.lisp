@@ -1,6 +1,6 @@
 ;;;; -*- coding: utf-8 -*-
 
-(in-package :ipl-user)
+(in-package "IPL-USER")
 
 (defun draw-thick-lambda (size &optional mirror)
   (setf mirror (if mirror -1 1))
@@ -38,9 +38,6 @@
                (tess (/ size 4)))))
     (tess 120)))
 
-(tesselate-lambda-rec)
-
-
 
 (defun draw-position ()
   (move 5)
@@ -64,7 +61,4 @@
   (draw 5)
   (turn 90))
 
-  
-
-
-  
+;;;; THE END ;;;;  

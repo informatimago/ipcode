@@ -34,7 +34,6 @@
 ;;;;    Boston, MA 02111-1307 USA
 ;;;;**************************************************************************
 (in-package "IPL-USER")
-(print '(in-package "IPL-USER"))
 
 ;;;--------------------
 ;;; Example 1
@@ -74,8 +73,6 @@
                  (pt-on-circle radius center (+ 3pi/2 radians))))
          (sleep 0.01))))
 
-(print '(rotating-square))
-
 
 ;;;--------------------
 ;;; Example 2
@@ -109,9 +106,6 @@
         (query-continue  "Terminé; tapez RET: ")
         (return-from-do-window)))))
 
-(print '(browning))
-
-
 ;;;--------------------
 ;;; 
 ;;;--------------------
@@ -140,8 +134,6 @@
     (query-continue "Terminé; tapez RET : ")
     (return-from-do-window)))
 
-(print '(test-draw-function))
-
 
 ;;;--------------------
 ;;; Turtles Examples
@@ -154,9 +146,6 @@
      :for i :below 6
      :do (draw (/ 50 (expt (1+ i) 3/4))) (turn 45) (split (turn -70))))
 
-(print '(ex-turtle-1))
-
-
 (defun ex-turtle-2 ()
   (loop
      :initially (clear)
@@ -164,9 +153,6 @@
      :do (progn (draw (/ 50 (expt (1+ i) (/ pi 7))))
                 (turn 53)
                 (split* (turn -107) (turn -88) (turn -65) (turn -30)))))
-
-(print '(ex-turtle-2))
-
 
 (defun ex-turtle-3 ()
   (loop
@@ -177,4 +163,4 @@
                          (draw 25))
                 (turn 10))))
 
-(print '(ex-turtle-3))
+;;;; THE END ;;;;
