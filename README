@@ -1,20 +1,47 @@
+.. comment: -*- mode:rst;coding:utf-8 -*-
 
 This is tested with:
 
 - clisp 2.49+, compiled with new-clx;
 - ccl 1.10.
 
+With quicklisp
+------------------------------
 
-To start with clisp, at the shell prompt type:
+::
+
+    ;; Until ipcode is included in quicklisp:
+    (push #P"/path/to/ipcode/" asdf:*central-registry*)
+    
+    (ql:quickload "ipl")
+
+    (in-package "IPL-USER")
+    
+    ;; Then try one of the following functions: 
+    ;; some of them must be halted with Control-C;
+    ;; in that case, exit from the debugger, reverting to the toplevel
+    ;; with the :q command.
+    (rotating-square) 
+    (browning) 
+    (test-draw-function) 
+    (ex-turtle-1) 
+    (ex-turtle-2) 
+    (ex-turtle-3) 
+
+
+Without quicklisp
+------------------------------
+
+To start with clisp, at the shell prompt type: ::
 
     ./lisp.sh
 
-To start with ccl, at the shell prompt type:
+To start with ccl, at the shell prompt type: ::
 
     ccl -n -e '(load "ipl-init.lisp")' -e '(in-package "IPL-USER")'
 
 
-To load the graphic examples:
+To load the graphic examples: ::
 
     (load "ipl-ex-graphic")
     (in-package "IPL-USER")
@@ -34,9 +61,16 @@ To exit, at the REPL prompt, type:
 
     (quit)
 
+Bugs
+------------------------------
+
+There's a new version of X11 that is incompatible with the current
+version of CLX, and prevents it to connect:  ::
+
+    Debug: Connection failure to X2816.0 server localhost display 0: Protocol version mismatch
 
 -- 
 __Pascal Bourguignon__                     
 http://www.informatimago.com/
-Fri Oct 10 17:54:25 CEST 2014
+Wed Nov 18 16:09:02 CET 2015
 
